@@ -13,8 +13,7 @@ import (
 type Options struct {
 	SyncInterval time.Duration
 
-	BlocksHistoryMaxLimit  uint32
-	LookupAccountsMaxLimit uint32
+	BlocksHistoryMaxLimit uint32
 
 	ErrorRetryTimeout time.Duration
 	ErrorRetryLimit   int
@@ -31,12 +30,6 @@ func SyncInterval(interval time.Duration) Option {
 func BlocksHistoryMaxLimit(limit uint32) Option {
 	return func(args *Options) {
 		args.BlocksHistoryMaxLimit = limit
-	}
-}
-
-func LookupAccountsMaxLimit(limit uint32) Option {
-	return func(args *Options) {
-		args.LookupAccountsMaxLimit = limit
 	}
 }
 
@@ -61,8 +54,7 @@ func NewProvider(url string, setters ...Option) *Provider {
 	args := &Options{
 		SyncInterval: time.Second,
 
-		BlocksHistoryMaxLimit:  100,
-		LookupAccountsMaxLimit: 1000,
+		BlocksHistoryMaxLimit: 100,
 
 		ErrorRetryTimeout: 10 * time.Second,
 		ErrorRetryLimit:   3,
@@ -97,7 +89,7 @@ func (p *Provider) Provide(from uint32, types []event.Type, buffer int) (<-chan 
 				return
 			}
 
-			if from == properties.HeadBlockNumber {
+			if from >= properties.HeadBlockNumber {
 				time.Sleep(p.Options.ErrorRetryTimeout)
 				continue
 			}

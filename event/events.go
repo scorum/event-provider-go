@@ -24,6 +24,7 @@ func init() {
 
 type Event interface {
 	Type() Type
+	Common() CommonEvent
 }
 
 func ToEvent(op types.Operation, blockID string, blockNum uint32) Event {
@@ -43,6 +44,10 @@ func (e CommonEvent) Type() Type {
 	return UnknownEventType
 }
 
+func (e CommonEvent) Common() CommonEvent {
+	return e
+}
+
 func toCommonEvent(_ types.Operation, blockID string, blockNum uint32) Event {
 	return &CommonEvent{
 		BlockID:  blockID,
@@ -57,6 +62,10 @@ type AccountCreateEvent struct {
 
 func (e AccountCreateEvent) Type() Type {
 	return AccountCreateEventType
+}
+
+func (e AccountCreateEvent) Common() CommonEvent {
+	return e.CommonEvent
 }
 
 func toAccountCreateEvent(op types.Operation, blockID string, blockNum uint32) Event {
@@ -105,6 +114,10 @@ func (e FlagEvent) Type() Type {
 	return FlagEventType
 }
 
+func (e FlagEvent) Common() CommonEvent {
+	return e.CommonEvent
+}
+
 func toVoteEvent(op types.Operation, blockID string, blockNum uint32) Event {
 	v, ok := op.(*types.VoteOperation)
 	if !ok {
@@ -149,6 +162,10 @@ func (e CommentEvent) Type() Type {
 	return CommentEventType
 }
 
+func (e CommentEvent) Common() CommonEvent {
+	return e.CommonEvent
+}
+
 type PostEvent struct {
 	CommonEvent
 	ParentPermLink string
@@ -160,6 +177,10 @@ type PostEvent struct {
 
 func (e PostEvent) Type() Type {
 	return PostEventType
+}
+
+func (e PostEvent) Common() CommonEvent {
+	return e.CommonEvent
 }
 
 func toCommentEvent(op types.Operation, blockID string, blockNum uint32) Event {

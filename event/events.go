@@ -150,6 +150,7 @@ func toVoteEvent(op types.Operation, blockID string, blockNum uint32) Event {
 
 type CommentEvent struct {
 	CommonEvent
+	PermLink       string
 	ParentAuthor   string
 	ParentPermLink string
 	Author         string
@@ -168,6 +169,7 @@ func (e CommentEvent) Common() CommonEvent {
 
 type PostEvent struct {
 	CommonEvent
+	PermLink       string
 	ParentPermLink string
 	Author         string
 	Body           string
@@ -195,6 +197,7 @@ func toCommentEvent(op types.Operation, blockID string, blockNum uint32) Event {
 				BlockID:  blockID,
 				BlockNum: blockNum,
 			},
+			PermLink:       v.Permlink,
 			ParentPermLink: v.ParentPermlink,
 			Author:         v.Author,
 			Body:           v.Body,
@@ -206,6 +209,7 @@ func toCommentEvent(op types.Operation, blockID string, blockNum uint32) Event {
 			CommonEvent: CommonEvent{
 				BlockID: blockID,
 			},
+			PermLink:       v.Permlink,
 			ParentAuthor:   v.ParentAuthor,
 			ParentPermLink: v.ParentPermlink,
 			Author:         v.Author,

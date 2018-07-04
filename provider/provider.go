@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const timeLayout = "2006-01-02T15:04:05"
+
 type Options struct {
 	SyncInterval time.Duration
 
@@ -74,7 +76,7 @@ func NewProvider(url string, setters ...Option) *Provider {
 	return monitor
 }
 
-func (p *Provider) Provide(from uint32, types []event.Type, buffer int) (<-chan event.Event, <-chan error) {
+func (p *Provider) Provide(from uint32, eventTypes []event.Type, buffer int) (<-chan event.Event, <-chan error) {
 	c := make(chan event.Event, buffer)
 	e := make(chan error, 1)
 
@@ -114,8 +116,15 @@ func (p *Provider) Provide(from uint32, types []event.Type, buffer int) (<-chan 
 
 				for _, transaction := range block.Transactions {
 					for _, operation := range transaction.Operations {
-						ev := event.ToEvent(operation, block.BlockID, num)
-						for _, eventType := range types {
+						timestamp, err := time.Parse(timeLayout, block.Timestamp)
+
+						if err != nil {
+							e <- err
+							return
+						}
+
+						ev := event.ToEvent(operation, block.BlockID, num, timestamp)
+						for _, eventType := range eventTypes {
 							if ev.Type() == eventType {
 								c <- ev
 								break

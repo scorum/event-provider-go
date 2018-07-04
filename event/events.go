@@ -4,11 +4,12 @@ import (
 	"errors"
 
 	"github.com/scorum/scorum-go/types"
+	"time"
 )
 
 var errWrongEventType = errors.New("wrong type")
 
-type converter func(operation types.Operation, blockID string, blockNum uint32) Event
+type converter func(operation types.Operation, commonEvent CommonEvent) Event
 
 var converters map[types.OpType]converter
 
@@ -27,17 +28,20 @@ type Event interface {
 	Common() CommonEvent
 }
 
-func ToEvent(op types.Operation, blockID string, blockNum uint32) Event {
+func ToEvent(op types.Operation, blockID string, blockNum uint32, timestamp time.Time) Event {
+	commonEvent := toCommonEvent(op, blockID, blockNum, timestamp)
+
 	if converter, exists := converters[op.Type()]; exists {
-		return converter(op, blockID, blockNum)
+		return converter(op, *commonEvent)
 	}
 
-	return toCommonEvent(op, blockID, blockNum)
+	return commonEvent
 }
 
 type CommonEvent struct {
-	BlockID  string
-	BlockNum uint32
+	BlockID   string
+	BlockNum  uint32
+	Timestamp time.Time
 }
 
 func (e CommonEvent) Type() Type {
@@ -48,10 +52,11 @@ func (e CommonEvent) Common() CommonEvent {
 	return e
 }
 
-func toCommonEvent(_ types.Operation, blockID string, blockNum uint32) Event {
+func toCommonEvent(_ types.Operation, blockID string, blockNum uint32, timestamp time.Time) *CommonEvent {
 	return &CommonEvent{
-		BlockID:  blockID,
-		BlockNum: blockNum,
+		BlockID:   blockID,
+		BlockNum:  blockNum,
+		Timestamp: timestamp,
 	}
 }
 
@@ -68,7 +73,7 @@ func (e AccountCreateEvent) Common() CommonEvent {
 	return e.CommonEvent
 }
 
-func toAccountCreateEvent(op types.Operation, blockID string, blockNum uint32) Event {
+func toAccountCreateEvent(op types.Operation, commonEvent CommonEvent) Event {
 	account := ""
 	switch v := op.(type) {
 	case *types.AccountCreateOperation:
@@ -82,11 +87,8 @@ func toAccountCreateEvent(op types.Operation, blockID string, blockNum uint32) E
 	}
 
 	return &AccountCreateEvent{
-		CommonEvent: CommonEvent{
-			BlockID:  blockID,
-			BlockNum: blockNum,
-		},
-		Account: account,
+		CommonEvent: commonEvent,
+		Account:     account,
 	}
 }
 
@@ -118,7 +120,7 @@ func (e FlagEvent) Common() CommonEvent {
 	return e.CommonEvent
 }
 
-func toVoteEvent(op types.Operation, blockID string, blockNum uint32) Event {
+func toVoteEvent(op types.Operation, commonEvent CommonEvent) Event {
 	v, ok := op.(*types.VoteOperation)
 	if !ok {
 		panic(errWrongEventType)
@@ -126,24 +128,19 @@ func toVoteEvent(op types.Operation, blockID string, blockNum uint32) Event {
 
 	if v.Weight < 0 {
 		return &FlagEvent{
-			CommonEvent: CommonEvent{
-				BlockID:  blockID,
-				BlockNum: blockNum,
-			},
-			Voter:    v.Voter,
-			Author:   v.Author,
-			PermLink: v.Permlink,
-			Weight:   v.Weight,
+			CommonEvent: commonEvent,
+			Voter:       v.Voter,
+			Author:      v.Author,
+			PermLink:    v.Permlink,
+			Weight:      v.Weight,
 		}
 	} else {
 		return &VoteEvent{
-			CommonEvent: CommonEvent{
-				BlockID: blockID,
-			},
-			Voter:    v.Voter,
-			Author:   v.Author,
-			PermLink: v.Permlink,
-			Weight:   v.Weight,
+			CommonEvent: commonEvent,
+			Voter:       v.Voter,
+			Author:      v.Author,
+			PermLink:    v.Permlink,
+			Weight:      v.Weight,
 		}
 	}
 }
@@ -185,7 +182,7 @@ func (e PostEvent) Common() CommonEvent {
 	return e.CommonEvent
 }
 
-func toCommentEvent(op types.Operation, blockID string, blockNum uint32) Event {
+func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 	v, ok := op.(*types.CommentOperation)
 	if !ok {
 		panic(errWrongEventType)
@@ -193,10 +190,7 @@ func toCommentEvent(op types.Operation, blockID string, blockNum uint32) Event {
 
 	if v.ParentAuthor == "" {
 		return &PostEvent{
-			CommonEvent: CommonEvent{
-				BlockID:  blockID,
-				BlockNum: blockNum,
-			},
+			CommonEvent:    commonEvent,
 			PermLink:       v.Permlink,
 			ParentPermLink: v.ParentPermlink,
 			Author:         v.Author,
@@ -206,9 +200,7 @@ func toCommentEvent(op types.Operation, blockID string, blockNum uint32) Event {
 		}
 	} else {
 		return &CommentEvent{
-			CommonEvent: CommonEvent{
-				BlockID: blockID,
-			},
+			CommonEvent:    commonEvent,
 			PermLink:       v.Permlink,
 			ParentAuthor:   v.ParentAuthor,
 			ParentPermLink: v.ParentPermlink,

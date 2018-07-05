@@ -1,13 +1,15 @@
 package provider
 
 import (
+	"sort"
+	"time"
+
 	"github.com/scorum/event-provider-go/event"
 	"github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
 	"github.com/scorum/scorum-go/transport/http"
 	"gitlab.scorum.com/blog/api/common"
-	"time"
 )
 
 const timeLayout = "2006-01-02T15:04:05"
@@ -109,7 +111,15 @@ func (p *Provider) Provide(from uint32, eventTypes []event.Type, buffer int) (<-
 				return
 			}
 
-			for num, block := range history {
+			nums := make([]uint32, 0, len(history))
+			for num := range history {
+				nums = append(nums, num)
+			}
+			sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
+
+			for _, num := range nums {
+				block := history[num]
+
 				if num > from {
 					from = num
 				}

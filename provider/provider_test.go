@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
-	"sync"
 	"context"
 )
 
@@ -13,8 +12,7 @@ const nodeHTTP = "https://testnet.scorum.com"
 
 func TestProvider(t *testing.T) {
 	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	done := make(chan bool)
 
 	provider.Provide(context.Background(), 1,
 		[]event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType},
@@ -23,30 +21,42 @@ func TestProvider(t *testing.T) {
 				require.NoError(t, err)
 			}
 			t.Log("event", e.Type())
-			wg.Done()
+			done <- true
 		})
 
-	wg.Wait()
+	select {
+	case <- time.Tick(1 * time.Second):
+		t.Fail()
+	case <- done:
+		return
+	}
 }
 
 func TestProvider_GenesisBlock(t *testing.T)  {
 	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	done := make(chan bool)
 
 	provider.Provide(context.Background(),0,
-		[]event.Type{event.AccountCreateEventType},
+		[]event.Type{event.AccountCreateEventType, event.UnknownEventType},
 		func(e event.Event, err error) {
 			if err != nil {
 				require.NoError(t, err)
 			}
 
 			if e.Common().BlockNum != 0 {
-				wg.Done()
+				done <- true
 				return
 			}
 
-			t.Log("account", e.(*event.AccountCreateEvent).Account)
+			if e.Type() == event.AccountCreateEventType {
+				t.Log("account", e.(*event.AccountCreateEvent).Account)
+			}
 		})
-	wg.Wait()
+
+	select {
+	case <- time.Tick(1 * time.Minute):
+		t.Fail()
+	case <- done:
+		return
+	}
 }

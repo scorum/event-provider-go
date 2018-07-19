@@ -165,7 +165,7 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 	}()
 }
 
-func (p *Provider) getExistingAccounts(ctx context.Context) ([]string, error) {
+func (p *Provider) getExistingAccounts() ([]string, error) {
 	const lookupAccountsMaxLimit = 1000
 
 	lowerBound := ""

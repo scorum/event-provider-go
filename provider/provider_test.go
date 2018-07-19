@@ -5,28 +5,47 @@ import (
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+	"sync"
 )
 
 const nodeHTTP = "https://testnet.scorum.com"
 
-func TestMonitor_Provide(t *testing.T) {
-	monitor := NewProvider(nodeHTTP, SyncInterval(time.Second))
+func TestProvider(t *testing.T) {
+	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 
-	c, e := monitor.Provide(0,
-		[]event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType}, 100)
+	provider.Provide(1,
+		[]event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType},
+		func(e event.Event, err error) {
+			if err != nil {
+				require.NoError(t, err)
+			}
+			t.Log("event", e.Type())
+			wg.Done()
+		})
 
-	received := false
+	wg.Wait()
+}
 
-	for {
-		select {
-		case <-c:
-			received = true
-		case err := <-e:
-			require.NoError(t, err)
-		}
+func TestProvider_GenesisBlock(t *testing.T)  {
+	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 
-		if received {
-			break
-		}
-	}
+	provider.Provide(0,
+		[]event.Type{event.AccountCreateEventType},
+		func(e event.Event, err error) {
+			if err != nil {
+				require.NoError(t, err)
+			}
+
+			if e.Common().BlockNum != 0 {
+				wg.Done()
+				return
+			}
+
+			t.Log("account", e.(*event.AccountCreateEvent).Account)
+		})
+	wg.Wait()
 }

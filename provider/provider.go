@@ -9,16 +9,17 @@ import (
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
 	"github.com/scorum/scorum-go/transport/http"
-	"gitlab.scorum.com/blog/api/common"
+	"context"
 )
 
-const timeLayout = "2006-01-02T15:04:05"
+const (
+	timeLayout = "2006-01-02T15:04:05"
+)
 
 type Options struct {
+	// SyncInterval is an interval to poll the blockchain
 	SyncInterval time.Duration
-
 	BlocksHistoryMaxLimit uint32
-
 	ErrorRetryTimeout time.Duration
 	ErrorRetryLimit   int
 }
@@ -50,16 +51,14 @@ func ErrorRetryLimit(limit int) Option {
 }
 
 type Provider struct {
-	Blockchain *scorumgo.Client
-	Options    *Options
+	client  *scorumgo.Client
+	Options *Options
 }
 
 func NewProvider(url string, setters ...Option) *Provider {
 	args := &Options{
 		SyncInterval: time.Second,
-
 		BlocksHistoryMaxLimit: 100,
-
 		ErrorRetryTimeout: 10 * time.Second,
 		ErrorRetryLimit:   3,
 	}
@@ -69,89 +68,146 @@ func NewProvider(url string, setters ...Option) *Provider {
 	}
 
 	transport := http.NewTransport(url)
-
-	monitor := &Provider{
-		Blockchain: scorumgo.NewClient(transport),
-		Options:    args,
+	return  &Provider{
+		client:  scorumgo.NewClient(transport),
+		Options: args,
 	}
-
-	return monitor
 }
 
-func (p *Provider) Provide(from uint32, eventTypes []event.Type, buffer int) (<-chan event.Event, <-chan error) {
-	c := make(chan event.Event, buffer)
-	e := make(chan error, 1)
-
+func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type, onEvent func(event.Event, error))  {
 	go func() {
-		defer close(c)
-		defer close(e)
+		// genesis block
+		if from == 0 {
+			accounts, err := p.getExistingAccounts()
+			if err != nil {
+				onEvent(nil, err)
+			}
+
+			// genesis block
+			genesis := event.CommonEvent{
+				BlockID: "",
+				BlockNum: 0,
+				Timestamp: time.Unix(0,0),
+			}
+
+			for _, account := range accounts {
+				onEvent(&event.AccountCreateEvent{
+					CommonEvent: genesis,
+					Account:     account,
+				}, nil)
+			}
+		}
 
 		for {
-			properties, err := p.getChainProperties()
-			if err != nil {
-				e <- err
+			select {
+			case <-ctx.Done():
 				return
-			}
-
-			if from >= properties.HeadBlockNumber {
-				time.Sleep(p.Options.ErrorRetryTimeout)
-				continue
-			}
-
-			// GetBlockHistory has descending order
-			limit := properties.HeadBlockNumber - from
-			if limit > p.Options.BlocksHistoryMaxLimit {
-				limit = p.Options.BlocksHistoryMaxLimit
-			}
-			offset := from + limit
-
-			history, err := p.getBlockHistory(offset, limit)
-			if err != nil {
-				e <- err
-				return
-			}
-
-			nums := make([]uint32, 0, len(history))
-			for num := range history {
-				nums = append(nums, num)
-			}
-			sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
-
-			for _, num := range nums {
-				block := history[num]
-
-				if num > from {
-					from = num
+			default:
+				properties, err := p.getChainProperties()
+				if err != nil {
+					onEvent(nil, err)
+					return
 				}
 
-				for _, transaction := range block.Transactions {
-					for _, operation := range transaction.Operations {
-						timestamp, err := time.Parse(timeLayout, block.Timestamp)
+				if from >= properties.HeadBlockNumber {
+					time.Sleep(p.Options.ErrorRetryTimeout)
+					continue
+				}
 
-						if err != nil {
-							e <- err
-							return
-						}
+				// GetBlockHistory has descending order
+				limit := properties.HeadBlockNumber - from
+				if limit > p.Options.BlocksHistoryMaxLimit {
+					limit = p.Options.BlocksHistoryMaxLimit
+				}
+				offset := from + limit
 
-						ev := event.ToEvent(operation, block.BlockID, num, timestamp)
-						for _, eventType := range eventTypes {
-							if ev.Type() == eventType {
-								c <- ev
-								break
+				history, err := p.getBlockHistory(offset, limit)
+				if err != nil {
+					onEvent(nil, err)
+					return
+				}
+
+				nums := make([]uint32, 0, len(history))
+				for num := range history {
+					nums = append(nums, num)
+				}
+				sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
+
+				for _, num := range nums {
+					block := history[num]
+
+					if num > from {
+						from = num
+					}
+
+					for _, transaction := range block.Transactions {
+						for _, operation := range transaction.Operations {
+							timestamp, err := time.Parse(timeLayout, block.Timestamp)
+
+							if err != nil {
+								onEvent(nil, err)
+								return
+							}
+
+							ev := event.ToEvent(operation, block.BlockID, num, timestamp)
+							for _, eventType := range eventTypes {
+								if ev.Type() == eventType {
+									onEvent(ev, nil)
+									break
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-	}()
 
-	return c, e
+	}()
+}
+
+func (p *Provider) getExistingAccounts() ([]string, error) {
+	const lookupAccountsMaxLimit = 1000
+
+	lowerBound := ""
+	result := make([]string, 0, lookupAccountsMaxLimit)
+
+	for {
+		accounts, err := p.lookupAccounts(lowerBound, lookupAccountsMaxLimit)
+		if err != nil {
+			return nil, err
+		}
+
+		if lowerBound == "" {
+			accounts = accounts[:]
+		} else {
+			accounts = accounts[1:]
+		}
+
+		if len(accounts) == 0 {
+			break
+		}
+
+		lowerBound = accounts[len(accounts)-1]
+		result = append(result, accounts...)
+	}
+
+	return result, nil
+}
+
+func (p *Provider) lookupAccounts(lowerBoundName string, limit uint16) (names []string, err error)  {
+	TryDo(func(attempt int) (retry bool, err error) {
+		names, err = p.client.Database.LookupAccounts(lowerBoundName, limit)
+		if err != nil {
+			time.Sleep(p.Options.ErrorRetryTimeout)
+		}
+		return attempt < p.Options.ErrorRetryLimit, err
+	})
+	return
 }
 
 func (p *Provider) getChainProperties() (prop *chain.ChainProperties, err error) {
-	common.TryDo(func(attempt int) (retry bool, err error) {
-		prop, err = p.Blockchain.Chain.GetChainProperties()
+	TryDo(func(attempt int) (retry bool, err error) {
+		prop, err = p.client.Chain.GetChainProperties()
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}
@@ -161,8 +217,8 @@ func (p *Provider) getChainProperties() (prop *chain.ChainProperties, err error)
 }
 
 func (p *Provider) getBlockHistory(blockNum, limit uint32) (history blockchain_history.BlockHistory, err error) {
-	common.TryDo(func(attempt int) (retry bool, err error) {
-		history, err = p.Blockchain.BlockchainHistory.GetBlocksHistory(blockNum, limit)
+	TryDo(func(attempt int) (retry bool, err error) {
+		history, err = p.client.BlockchainHistory.GetBlocksHistory(blockNum, limit)
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}

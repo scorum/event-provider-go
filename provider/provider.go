@@ -9,6 +9,7 @@ import (
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
 	"github.com/scorum/scorum-go/transport/http"
+	"context"
 )
 
 const (
@@ -73,7 +74,7 @@ func NewProvider(url string, setters ...Option) *Provider {
 	}
 }
 
-func (p *Provider) Provide(from uint32, eventTypes []event.Type, onEvent func(event.Event, error))  {
+func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type, onEvent func(event.Event, error))  {
 	go func() {
 		// genesis block
 		if from == 0 {
@@ -98,67 +99,73 @@ func (p *Provider) Provide(from uint32, eventTypes []event.Type, onEvent func(ev
 		}
 
 		for {
-			properties, err := p.getChainProperties()
-			if err != nil {
-				onEvent(nil, err)
+			select {
+			case <-ctx.Done():
 				return
-			}
-
-			if from >= properties.HeadBlockNumber {
-				time.Sleep(p.Options.ErrorRetryTimeout)
-				continue
-			}
-
-			// GetBlockHistory has descending order
-			limit := properties.HeadBlockNumber - from
-			if limit > p.Options.BlocksHistoryMaxLimit {
-				limit = p.Options.BlocksHistoryMaxLimit
-			}
-			offset := from + limit
-
-			history, err := p.getBlockHistory(offset, limit)
-			if err != nil {
-				onEvent(nil, err)
-				return
-			}
-
-			nums := make([]uint32, 0, len(history))
-			for num := range history {
-				nums = append(nums, num)
-			}
-			sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
-
-			for _, num := range nums {
-				block := history[num]
-
-				if num > from {
-					from = num
+			default:
+				properties, err := p.getChainProperties()
+				if err != nil {
+					onEvent(nil, err)
+					return
 				}
 
-				for _, transaction := range block.Transactions {
-					for _, operation := range transaction.Operations {
-						timestamp, err := time.Parse(timeLayout, block.Timestamp)
+				if from >= properties.HeadBlockNumber {
+					time.Sleep(p.Options.ErrorRetryTimeout)
+					continue
+				}
 
-						if err != nil {
-							onEvent(nil, err)
-							return
-						}
+				// GetBlockHistory has descending order
+				limit := properties.HeadBlockNumber - from
+				if limit > p.Options.BlocksHistoryMaxLimit {
+					limit = p.Options.BlocksHistoryMaxLimit
+				}
+				offset := from + limit
 
-						ev := event.ToEvent(operation, block.BlockID, num, timestamp)
-						for _, eventType := range eventTypes {
-							if ev.Type() == eventType {
-								onEvent(ev, nil)
-								break
+				history, err := p.getBlockHistory(offset, limit)
+				if err != nil {
+					onEvent(nil, err)
+					return
+				}
+
+				nums := make([]uint32, 0, len(history))
+				for num := range history {
+					nums = append(nums, num)
+				}
+				sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
+
+				for _, num := range nums {
+					block := history[num]
+
+					if num > from {
+						from = num
+					}
+
+					for _, transaction := range block.Transactions {
+						for _, operation := range transaction.Operations {
+							timestamp, err := time.Parse(timeLayout, block.Timestamp)
+
+							if err != nil {
+								onEvent(nil, err)
+								return
+							}
+
+							ev := event.ToEvent(operation, block.BlockID, num, timestamp)
+							for _, eventType := range eventTypes {
+								if ev.Type() == eventType {
+									onEvent(ev, nil)
+									break
+								}
 							}
 						}
 					}
 				}
 			}
 		}
+
 	}()
 }
 
-func (p *Provider) getExistingAccounts() ([]string, error) {
+func (p *Provider) getExistingAccounts(ctx context.Context) ([]string, error) {
 	const lookupAccountsMaxLimit = 1000
 
 	lowerBound := ""

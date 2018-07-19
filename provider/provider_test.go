@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 	"sync"
+	"context"
 )
 
 const nodeHTTP = "https://testnet.scorum.com"
@@ -15,7 +16,7 @@ func TestProvider(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	provider.Provide(1,
+	provider.Provide(context.Background(), 1,
 		[]event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType},
 		func(e event.Event, err error) {
 			if err != nil {
@@ -33,7 +34,7 @@ func TestProvider_GenesisBlock(t *testing.T)  {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	provider.Provide(0,
+	provider.Provide(context.Background(),0,
 		[]event.Type{event.AccountCreateEventType},
 		func(e event.Event, err error) {
 			if err != nil {

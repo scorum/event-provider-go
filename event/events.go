@@ -3,8 +3,9 @@ package event
 import (
 	"errors"
 
-	"github.com/scorum/scorum-go/types"
 	"time"
+
+	"github.com/scorum/scorum-go/types"
 )
 
 var errWrongEventType = errors.New("wrong event type")
@@ -222,8 +223,8 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 // Delete Comment
 type DeleteCommentEvent struct {
 	CommonEvent
-	PermLink       string
-	Author         string
+	PermLink string
+	Author   string
 }
 
 func (e DeleteCommentEvent) Type() Type {
@@ -241,8 +242,8 @@ func toDeleteCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 
 	return &DeleteCommentEvent{
-		CommonEvent:    commonEvent,
-		PermLink:       v.Permlink,
-		Author:         v.Author,
+		CommonEvent: commonEvent,
+		PermLink:    v.Permlink,
+		Author:      v.Author,
 	}
 }

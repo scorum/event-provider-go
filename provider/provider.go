@@ -4,12 +4,13 @@ import (
 	"sort"
 	"time"
 
+	"context"
+
 	"github.com/scorum/event-provider-go/event"
 	"github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
 	"github.com/scorum/scorum-go/transport/http"
-	"context"
 )
 
 const (
@@ -18,10 +19,10 @@ const (
 
 type Options struct {
 	// SyncInterval is an interval to poll the blockchain
-	SyncInterval time.Duration
+	SyncInterval          time.Duration
 	BlocksHistoryMaxLimit uint32
-	ErrorRetryTimeout time.Duration
-	ErrorRetryLimit   int
+	ErrorRetryTimeout     time.Duration
+	ErrorRetryLimit       int
 }
 
 type Option func(*Options)
@@ -57,10 +58,10 @@ type Provider struct {
 
 func NewProvider(url string, setters ...Option) *Provider {
 	args := &Options{
-		SyncInterval: time.Second,
+		SyncInterval:          time.Second,
 		BlocksHistoryMaxLimit: 100,
-		ErrorRetryTimeout: 10 * time.Second,
-		ErrorRetryLimit:   3,
+		ErrorRetryTimeout:     10 * time.Second,
+		ErrorRetryLimit:       3,
 	}
 
 	for _, setter := range setters {
@@ -68,13 +69,13 @@ func NewProvider(url string, setters ...Option) *Provider {
 	}
 
 	transport := http.NewTransport(url)
-	return  &Provider{
+	return &Provider{
 		client:  scorumgo.NewClient(transport),
 		Options: args,
 	}
 }
 
-func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type, onEvent func(event.Event, error))  {
+func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type, onEvent func(event.Event, error)) {
 	go func() {
 		// genesis block
 		if from == 0 {
@@ -85,9 +86,9 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 
 			// genesis block
 			genesis := event.CommonEvent{
-				BlockID: "",
-				BlockNum: 0,
-				Timestamp: time.Unix(0,0),
+				BlockID:   "",
+				BlockNum:  0,
+				Timestamp: time.Unix(0, 0),
 			}
 
 			for _, account := range accounts {
@@ -194,7 +195,7 @@ func (p *Provider) getExistingAccounts() ([]string, error) {
 	return result, nil
 }
 
-func (p *Provider) lookupAccounts(lowerBoundName string, limit uint16) (names []string, err error)  {
+func (p *Provider) lookupAccounts(lowerBoundName string, limit uint16) (names []string, err error) {
 	TryDo(func(attempt int) (retry bool, err error) {
 		names, err = p.client.Database.LookupAccounts(lowerBoundName, limit)
 		if err != nil {

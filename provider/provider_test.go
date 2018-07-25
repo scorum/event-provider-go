@@ -1,11 +1,12 @@
 package provider
 
 import (
-	"github.com/scorum/event-provider-go/event"
-	"github.com/stretchr/testify/require"
+	"context"
 	"testing"
 	"time"
-	"context"
+
+	"github.com/scorum/event-provider-go/event"
+	"github.com/stretchr/testify/require"
 )
 
 const nodeHTTP = "https://testnet.scorum.com"
@@ -25,18 +26,18 @@ func TestProvider(t *testing.T) {
 		})
 
 	select {
-	case <- time.Tick(5 * time.Second):
+	case <-time.Tick(5 * time.Second):
 		t.Fatalf("no events within 5 seconds")
-	case <- done:
+	case <-done:
 		return
 	}
 }
 
-func TestProvider_GenesisBlock(t *testing.T)  {
+func TestProvider_GenesisBlock(t *testing.T) {
 	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
 	done := make(chan bool)
 
-	provider.Provide(context.Background(),0,
+	provider.Provide(context.Background(), 0,
 		[]event.Type{event.AccountCreateEventType, event.UnknownEventType},
 		func(e event.Event, err error) {
 			if err != nil {
@@ -54,9 +55,9 @@ func TestProvider_GenesisBlock(t *testing.T)  {
 		})
 
 	select {
-	case <- time.Tick(1 * time.Minute):
+	case <-time.Tick(1 * time.Minute):
 		t.Fail()
-	case <- done:
+	case <-done:
 		return
 	}
 }

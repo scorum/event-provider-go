@@ -9,4 +9,5 @@ const (
 	CommentEventType
 	VoteEventType
 	FlagEventType
+	DeleteCommentEventType
 )

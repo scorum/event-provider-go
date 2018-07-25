@@ -25,8 +25,8 @@ func TestProvider(t *testing.T) {
 		})
 
 	select {
-	case <- time.Tick(1 * time.Second):
-		t.Fail()
+	case <- time.Tick(5 * time.Second):
+		t.Fatalf("no events within 5 seconds")
 	case <- done:
 		return
 	}

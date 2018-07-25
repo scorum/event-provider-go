@@ -223,7 +223,6 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 type DeleteCommentEvent struct {
 	CommonEvent
 	PermLink       string
-	ParentPermLink string
 	Author         string
 }
 

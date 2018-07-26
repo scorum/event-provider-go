@@ -1,10 +1,9 @@
 package provider
 
 import (
+	"context"
 	"sort"
 	"time"
-
-	"context"
 
 	"github.com/scorum/event-provider-go/event"
 	"github.com/scorum/scorum-go"

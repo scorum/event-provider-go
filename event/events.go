@@ -40,7 +40,7 @@ func ToEvent(op types.Operation, blockID string, blockNum uint32, timestamp time
 	return commonEvent
 }
 
-// Common Event
+// CommonEvent
 type CommonEvent struct {
 	BlockID   string
 	BlockNum  uint32
@@ -63,7 +63,7 @@ func toCommonEvent(_ types.Operation, blockID string, blockNum uint32, timestamp
 	}
 }
 
-// Account Create Event
+// AccountCreateEvent
 type AccountCreateEvent struct {
 	CommonEvent
 	Account string
@@ -96,7 +96,7 @@ func toAccountCreateEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 }
 
-// Vote Event
+// VoteEvent
 type VoteEvent struct {
 	CommonEvent
 	Voter    string
@@ -134,7 +134,7 @@ func toVoteEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 }
 
-// Flag Event
+// FlagsEvent
 type FlagEvent struct {
 	CommonEvent
 	Voter    string
@@ -151,7 +151,7 @@ func (e FlagEvent) Common() CommonEvent {
 	return e.CommonEvent
 }
 
-// Comment Event
+// CommentEvent
 type CommentEvent struct {
 	CommonEvent
 	PermLink       string
@@ -171,7 +171,7 @@ func (e CommentEvent) Common() CommonEvent {
 	return e.CommonEvent
 }
 
-// Post Event
+// PostEvent
 type PostEvent struct {
 	CommonEvent
 	PermLink       string
@@ -220,7 +220,7 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 }
 
-// Delete Comment
+// DeleteComment
 type DeleteCommentEvent struct {
 	CommonEvent
 	PermLink string

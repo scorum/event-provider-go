@@ -3,11 +3,12 @@ package event
 import (
 	"errors"
 
-	"github.com/scorum/scorum-go/types"
 	"time"
+
+	"github.com/scorum/scorum-go/types"
 )
 
-var errWrongEventType = errors.New("wrong type")
+var errWrongEventType = errors.New("wrong event type")
 
 type converter func(operation types.Operation, commonEvent CommonEvent) Event
 
@@ -20,6 +21,7 @@ func init() {
 		types.AccountCreateWithDelegationOpType: toAccountCreateEvent,
 		types.VoteOpType:                        toVoteEvent,
 		types.CommentOpType:                     toCommentEvent,
+		types.DeleteCommentOpType:               toDeleteCommentEvent,
 	}
 }
 
@@ -38,6 +40,7 @@ func ToEvent(op types.Operation, blockID string, blockNum uint32, timestamp time
 	return commonEvent
 }
 
+// CommonEvent
 type CommonEvent struct {
 	BlockID   string
 	BlockNum  uint32
@@ -60,6 +63,7 @@ func toCommonEvent(_ types.Operation, blockID string, blockNum uint32, timestamp
 	}
 }
 
+// AccountCreateEvent
 type AccountCreateEvent struct {
 	CommonEvent
 	Account string
@@ -92,6 +96,7 @@ func toAccountCreateEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 }
 
+// VoteEvent
 type VoteEvent struct {
 	CommonEvent
 	Voter    string
@@ -102,22 +107,6 @@ type VoteEvent struct {
 
 func (e VoteEvent) Type() Type {
 	return VoteEventType
-}
-
-type FlagEvent struct {
-	CommonEvent
-	Voter    string
-	Author   string
-	PermLink string
-	Weight   int16
-}
-
-func (e FlagEvent) Type() Type {
-	return FlagEventType
-}
-
-func (e FlagEvent) Common() CommonEvent {
-	return e.CommonEvent
 }
 
 func toVoteEvent(op types.Operation, commonEvent CommonEvent) Event {
@@ -145,6 +134,24 @@ func toVoteEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 }
 
+// FlagsEvent
+type FlagEvent struct {
+	CommonEvent
+	Voter    string
+	Author   string
+	PermLink string
+	Weight   int16
+}
+
+func (e FlagEvent) Type() Type {
+	return FlagEventType
+}
+
+func (e FlagEvent) Common() CommonEvent {
+	return e.CommonEvent
+}
+
+// CommentEvent
 type CommentEvent struct {
 	CommonEvent
 	PermLink       string
@@ -164,6 +171,7 @@ func (e CommentEvent) Common() CommonEvent {
 	return e.CommonEvent
 }
 
+// PostEvent
 type PostEvent struct {
 	CommonEvent
 	PermLink       string
@@ -209,5 +217,33 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 			JsonMetadata:   v.JsonMetadata,
 			Title:          v.Title,
 		}
+	}
+}
+
+// DeleteComment
+type DeleteCommentEvent struct {
+	CommonEvent
+	PermLink string
+	Author   string
+}
+
+func (e DeleteCommentEvent) Type() Type {
+	return DeleteCommentEventType
+}
+
+func (e DeleteCommentEvent) Common() CommonEvent {
+	return e.CommonEvent
+}
+
+func toDeleteCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
+	v, ok := op.(*types.DeleteCommentOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return &DeleteCommentEvent{
+		CommonEvent: commonEvent,
+		PermLink:    v.Permlink,
+		Author:      v.Author,
 	}
 }

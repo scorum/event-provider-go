@@ -10,7 +10,7 @@ import (
 
 var errWrongEventType = errors.New("wrong event type")
 
-type converter func(operation types.Operation, commonEvent CommonEvent) Event
+type converter func(operation types.Operation) Event
 
 var converters map[types.OpType]converter
 
@@ -22,50 +22,37 @@ func init() {
 		types.VoteOpType:                        toVoteEvent,
 		types.CommentOpType:                     toCommentEvent,
 		types.DeleteCommentOpType:               toDeleteCommentEvent,
+		types.CreateGame:                        toCreateGameEvent,
+		types.CancelGame:                        toCancelGameEvent,
+		types.UpdateGameStartTime:               toUpdateGameStartTimeEvent,
+		types.PostGameResults:                   toPostGameResultsEvent,
+		types.PostBet:                           toPostBetEvent,
+		types.CancelPendingBets:                 toCancelPendingBetEvent,
+		types.BetsMatched:                       toBetsMatchedEvent,
 	}
 }
 
 type Event interface {
 	Type() Type
-	Common() CommonEvent
 }
 
-func ToEvent(op types.Operation, blockID string, blockNum uint32, timestamp time.Time) Event {
-	commonEvent := toCommonEvent(op, blockID, blockNum, timestamp)
-
+func ToEvent(op types.Operation) Event {
 	if converter, exists := converters[op.Type()]; exists {
-		return converter(op, *commonEvent)
+		return converter(op)
 	}
 
-	return commonEvent
+	return UnknownEvent{}
 }
 
-// CommonEvent
-type CommonEvent struct {
+type Block struct {
 	BlockID   string
 	BlockNum  uint32
 	Timestamp time.Time
-}
-
-func (e CommonEvent) Type() Type {
-	return UnknownEventType
-}
-
-func (e CommonEvent) Common() CommonEvent {
-	return e
-}
-
-func toCommonEvent(_ types.Operation, blockID string, blockNum uint32, timestamp time.Time) *CommonEvent {
-	return &CommonEvent{
-		BlockID:   blockID,
-		BlockNum:  blockNum,
-		Timestamp: timestamp,
-	}
+	Events    []Event
 }
 
 // AccountCreateEvent
 type AccountCreateEvent struct {
-	CommonEvent
 	Account string
 }
 
@@ -73,11 +60,7 @@ func (e AccountCreateEvent) Type() Type {
 	return AccountCreateEventType
 }
 
-func (e AccountCreateEvent) Common() CommonEvent {
-	return e.CommonEvent
-}
-
-func toAccountCreateEvent(op types.Operation, commonEvent CommonEvent) Event {
+func toAccountCreateEvent(op types.Operation) Event {
 	account := ""
 	switch v := op.(type) {
 	case *types.AccountCreateOperation:
@@ -91,14 +74,12 @@ func toAccountCreateEvent(op types.Operation, commonEvent CommonEvent) Event {
 	}
 
 	return &AccountCreateEvent{
-		CommonEvent: commonEvent,
-		Account:     account,
+		Account: account,
 	}
 }
 
 // VoteEvent
 type VoteEvent struct {
-	CommonEvent
 	Voter    string
 	Author   string
 	PermLink string
@@ -109,7 +90,7 @@ func (e VoteEvent) Type() Type {
 	return VoteEventType
 }
 
-func toVoteEvent(op types.Operation, commonEvent CommonEvent) Event {
+func toVoteEvent(op types.Operation) Event {
 	v, ok := op.(*types.VoteOperation)
 	if !ok {
 		panic(errWrongEventType)
@@ -117,26 +98,23 @@ func toVoteEvent(op types.Operation, commonEvent CommonEvent) Event {
 
 	if v.Weight < 0 {
 		return &FlagEvent{
-			CommonEvent: commonEvent,
-			Voter:       v.Voter,
-			Author:      v.Author,
-			PermLink:    v.Permlink,
-			Weight:      v.Weight,
+			Voter:    v.Voter,
+			Author:   v.Author,
+			PermLink: v.Permlink,
+			Weight:   v.Weight,
 		}
 	} else {
 		return &VoteEvent{
-			CommonEvent: commonEvent,
-			Voter:       v.Voter,
-			Author:      v.Author,
-			PermLink:    v.Permlink,
-			Weight:      v.Weight,
+			Voter:    v.Voter,
+			Author:   v.Author,
+			PermLink: v.Permlink,
+			Weight:   v.Weight,
 		}
 	}
 }
 
 // FlagsEvent
 type FlagEvent struct {
-	CommonEvent
 	Voter    string
 	Author   string
 	PermLink string
@@ -147,13 +125,8 @@ func (e FlagEvent) Type() Type {
 	return FlagEventType
 }
 
-func (e FlagEvent) Common() CommonEvent {
-	return e.CommonEvent
-}
-
 // CommentEvent
 type CommentEvent struct {
-	CommonEvent
 	PermLink       string
 	ParentAuthor   string
 	ParentPermLink string
@@ -167,13 +140,8 @@ func (e CommentEvent) Type() Type {
 	return CommentEventType
 }
 
-func (e CommentEvent) Common() CommonEvent {
-	return e.CommonEvent
-}
-
 // PostEvent
 type PostEvent struct {
-	CommonEvent
 	PermLink       string
 	ParentPermLink string
 	Author         string
@@ -186,11 +154,7 @@ func (e PostEvent) Type() Type {
 	return PostEventType
 }
 
-func (e PostEvent) Common() CommonEvent {
-	return e.CommonEvent
-}
-
-func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
+func toCommentEvent(op types.Operation) Event {
 	v, ok := op.(*types.CommentOperation)
 	if !ok {
 		panic(errWrongEventType)
@@ -198,7 +162,6 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 
 	if v.ParentAuthor == "" {
 		return &PostEvent{
-			CommonEvent:    commonEvent,
 			PermLink:       v.Permlink,
 			ParentPermLink: v.ParentPermlink,
 			Author:         v.Author,
@@ -208,7 +171,6 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 		}
 	} else {
 		return &CommentEvent{
-			CommonEvent:    commonEvent,
 			PermLink:       v.Permlink,
 			ParentAuthor:   v.ParentAuthor,
 			ParentPermLink: v.ParentPermlink,
@@ -222,7 +184,6 @@ func toCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
 
 // DeleteComment
 type DeleteCommentEvent struct {
-	CommonEvent
 	PermLink string
 	Author   string
 }
@@ -231,19 +192,139 @@ func (e DeleteCommentEvent) Type() Type {
 	return DeleteCommentEventType
 }
 
-func (e DeleteCommentEvent) Common() CommonEvent {
-	return e.CommonEvent
-}
-
-func toDeleteCommentEvent(op types.Operation, commonEvent CommonEvent) Event {
+func toDeleteCommentEvent(op types.Operation) Event {
 	v, ok := op.(*types.DeleteCommentOperation)
 	if !ok {
 		panic(errWrongEventType)
 	}
 
 	return &DeleteCommentEvent{
-		CommonEvent: commonEvent,
-		PermLink:    v.Permlink,
-		Author:      v.Author,
+		PermLink: v.Permlink,
+		Author:   v.Author,
 	}
+}
+
+type CreateGameEvent struct {
+	types.CreateGameOperation
+}
+
+func (e CreateGameEvent) Type() Type {
+	return CreateGameEventType
+}
+
+func toCreateGameEvent(op types.Operation) Event {
+	e, ok := op.(*types.CreateGameOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return CreateGameEvent{*e}
+}
+
+type CancelGameEvent struct {
+	types.CancelGameOperation
+}
+
+func (e CancelGameEvent) Type() Type {
+	return CancelGameEventType
+}
+
+func toCancelGameEvent(op types.Operation) Event {
+	e, ok := op.(*types.CancelGameOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return CancelGameEvent{*e}
+}
+
+type UpdateGameStartTimeEvent struct {
+	types.UpdateGameStartTimeOperation
+}
+
+func (e UpdateGameStartTimeEvent) Type() Type {
+	return UpdateGameStartEventType
+}
+
+func toUpdateGameStartTimeEvent(op types.Operation) Event {
+	e, ok := op.(*types.UpdateGameStartTimeOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return UpdateGameStartTimeEvent{*e}
+}
+
+type PostGameResultsEvent struct {
+	types.PostGameResultsOperation
+}
+
+func (e PostGameResultsEvent) Type() Type {
+	return PostGameResultsEventType
+}
+
+func toPostGameResultsEvent(op types.Operation) Event {
+	e, ok := op.(*types.PostGameResultsOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return PostGameResultsEvent{*e}
+}
+
+type PostBetEvent struct {
+	types.PostBetOperation
+}
+
+func (e PostBetEvent) Type() Type {
+	return PostBetEventType
+}
+
+func toPostBetEvent(op types.Operation) Event {
+	e, ok := op.(*types.PostBetOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return PostBetEvent{*e}
+}
+
+type CancelPendingBetEvent struct {
+	types.CancelPendingBetsOperation
+}
+
+func (e CancelPendingBetEvent) Type() Type {
+	return CancelPendingBetsEventType
+}
+
+func toCancelPendingBetEvent(op types.Operation) Event {
+	e, ok := op.(*types.CancelPendingBetsOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return CancelPendingBetEvent{*e}
+}
+
+type BetsMatchedEvent struct {
+	types.BetsMatchedVirtualOperation
+}
+
+func (e BetsMatchedEvent) Type() Type {
+	return BetsMatchedEventType
+}
+
+func toBetsMatchedEvent(op types.Operation) Event {
+	e, ok := op.(*types.BetsMatchedVirtualOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return BetsMatchedEvent{*e}
+}
+
+type UnknownEvent struct{}
+
+func (e UnknownEvent) Type() Type {
+	return UnknownEventType
 }

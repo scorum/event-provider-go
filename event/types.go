@@ -10,4 +10,11 @@ const (
 	VoteEventType
 	FlagEventType
 	DeleteCommentEventType
+	CreateGameEventType
+	CancelGameEventType
+	UpdateGameStartEventType
+	PostGameResultsEventType
+	PostBetEventType
+	CancelPendingBetsEventType
+	BetsMatchedEventType
 )

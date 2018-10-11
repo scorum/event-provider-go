@@ -51,8 +51,9 @@ func ErrorRetryLimit(limit int) Option {
 }
 
 type Provider struct {
-	client  *scorumgo.Client
-	Options *Options
+	client          *scorumgo.Client
+	Options         *Options
+	CurrentBlockNum uint32
 }
 
 func NewProvider(url string, setters ...Option) *Provider {
@@ -95,9 +96,9 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 
 			for _, account := range accounts {
 				genesis.Events = append(genesis.Events,
-				&event.AccountCreateEvent{
-					Account:     account,
-				})
+					&event.AccountCreateEvent{
+						Account: account,
+					})
 			}
 			blocksCh <- genesis
 		}
@@ -138,6 +139,8 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 				sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
 
 				for _, num := range nums {
+					p.CurrentBlockNum = num
+
 					block := history[num]
 
 					if num > from {
@@ -151,8 +154,8 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 					}
 
 					eBlock := event.Block{
-						BlockID: block.BlockID,
-						BlockNum: num,
+						BlockID:   block.BlockID,
+						BlockNum:  num,
 						Timestamp: timestamp,
 					}
 					for _, transaction := range block.Transactions {
@@ -176,7 +179,7 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 
 	}(blocksCh, errCh)
 
-	return  blocksCh, errCh
+	return blocksCh, errCh
 }
 
 func (p *Provider) getExistingAccounts() ([]string, error) {

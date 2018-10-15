@@ -51,8 +51,9 @@ func ErrorRetryLimit(limit int) Option {
 }
 
 type Provider struct {
-	client  *scorumgo.Client
-	Options *Options
+	client          *scorumgo.Client
+	Options         *Options
+	CurrentBlockNum uint32
 }
 
 func NewProvider(url string, setters ...Option) *Provider {
@@ -74,28 +75,32 @@ func NewProvider(url string, setters ...Option) *Provider {
 	}
 }
 
-func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type, onEvent func(event.Event, error)) {
-	go func() {
+func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type) (chan event.Block, chan error) {
+	blocksCh := make(chan event.Block)
+	errCh := make(chan error)
+	go func(blocksCh chan event.Block, errCh chan error) {
 		// genesis block
 		if from == 0 {
 			accounts, err := p.getExistingAccounts()
 			if err != nil {
-				onEvent(nil, err)
+				errCh <- err
+				return
 			}
 
 			// genesis block
-			genesis := event.CommonEvent{
+			genesis := event.Block{
 				BlockID:   "",
 				BlockNum:  0,
 				Timestamp: time.Unix(0, 0),
 			}
 
 			for _, account := range accounts {
-				onEvent(&event.AccountCreateEvent{
-					CommonEvent: genesis,
-					Account:     account,
-				}, nil)
+				genesis.Events = append(genesis.Events,
+					&event.AccountCreateEvent{
+						Account: account,
+					})
 			}
+			blocksCh <- genesis
 		}
 
 		for {
@@ -105,7 +110,7 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 			default:
 				properties, err := p.getChainProperties()
 				if err != nil {
-					onEvent(nil, err)
+					errCh <- err
 					return
 				}
 
@@ -123,7 +128,7 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 
 				history, err := p.getBlockHistory(offset, limit)
 				if err != nil {
-					onEvent(nil, err)
+					errCh <- err
 					return
 				}
 
@@ -134,35 +139,47 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 				sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
 
 				for _, num := range nums {
+					p.CurrentBlockNum = num
+
 					block := history[num]
 
 					if num > from {
 						from = num
 					}
 
+					timestamp, err := time.Parse(timeLayout, block.Timestamp)
+					if err != nil {
+						errCh <- err
+						return
+					}
+
+					eBlock := event.Block{
+						BlockID:   block.BlockID,
+						BlockNum:  num,
+						Timestamp: timestamp,
+					}
 					for _, transaction := range block.Transactions {
 						for _, operation := range transaction.Operations {
-							timestamp, err := time.Parse(timeLayout, block.Timestamp)
-
-							if err != nil {
-								onEvent(nil, err)
-								return
-							}
-
-							ev := event.ToEvent(operation, block.BlockID, num, timestamp)
+							ev := event.ToEvent(operation)
 							for _, eventType := range eventTypes {
 								if ev.Type() == eventType {
-									onEvent(ev, nil)
+									eBlock.Events = append(eBlock.Events, ev)
 									break
 								}
 							}
 						}
 					}
+
+					if len(eBlock.Events) != 0 {
+						blocksCh <- eBlock
+					}
 				}
 			}
 		}
 
-	}()
+	}(blocksCh, errCh)
+
+	return blocksCh, errCh
 }
 
 func (p *Provider) getExistingAccounts() ([]string, error) {

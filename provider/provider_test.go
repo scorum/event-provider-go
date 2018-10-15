@@ -13,51 +13,47 @@ const nodeHTTP = "https://testnet.scorum.com"
 
 func TestProvider(t *testing.T) {
 	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
-	done := make(chan bool)
 
-	provider.Provide(context.Background(), 1,
-		[]event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType},
-		func(e event.Event, err error) {
-			if err != nil {
-				require.NoError(t, err)
-			}
-			t.Log("event", e.Type())
-			done <- true
-		})
+	ctx, cancel := context.WithCancel(context.Background())
 
-	select {
-	case <-time.Tick(5 * time.Second):
-		t.Fatalf("no events within 5 seconds")
-	case <-done:
-		return
+	bCh, eCh := provider.Provide(ctx, 1, []event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType})
+
+	for {
+		select {
+		case e := <-eCh:
+			t.Fatal(e)
+		case <-ctx.Done():
+			return
+		case <-time.Tick(5 * time.Second):
+			t.Fatalf("no events within 5 seconds")
+		case b := <-bCh:
+			require.NotEmpty(t, b.Events)
+			cancel()
+		}
 	}
 }
 
 func TestProvider_GenesisBlock(t *testing.T) {
 	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
-	done := make(chan bool)
 
-	provider.Provide(context.Background(), 0,
-		[]event.Type{event.AccountCreateEventType, event.UnknownEventType},
-		func(e event.Event, err error) {
-			if err != nil {
-				require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	bCh, eCh := provider.Provide(ctx, 0, []event.Type{event.AccountCreateEventType, event.UnknownEventType})
+	for {
+		select {
+		case e := <-eCh:
+			t.Fatal(e)
+		case <-ctx.Done():
+			return
+		case <-time.Tick(1 * time.Minute):
+			t.Fatalf("no events within 1 minute")
+		case b := <-bCh:
+			require.EqualValues(t, b.BlockNum, 0)
+			require.NotEmpty(t, b.Events)
+			for _, e := range b.Events {
+				require.EqualValues(t, event.AccountCreateEventType, e.Type())
 			}
-
-			if e.Common().BlockNum != 0 {
-				done <- true
-				return
-			}
-
-			if e.Type() == event.AccountCreateEventType {
-				t.Log("account", e.(*event.AccountCreateEvent).Account)
-			}
-		})
-
-	select {
-	case <-time.Tick(1 * time.Minute):
-		t.Fail()
-	case <-done:
-		return
+			cancel()
+		}
 	}
 }

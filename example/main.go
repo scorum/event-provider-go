@@ -1,13 +1,5 @@
-# scorum/event-provider-go
-[![Go Report Card](https://goreportcard.com/badge/github.com/scorum/event-provider-go)](https://goreportcard.com/report/github.com/scorum/event-provider-go)
-[![GoDoc](https://godoc.org/github.com/scorum/event-provider-go?status.svg)](https://godoc.org/github.com/scorum/event-provider-go)
-[![Build Status](https://travis-ci.org/scorum/event-provider-go.svg?branch=master)](https://travis-ci.org/scorum/event-provider-go)
+package main
 
-Golang wrapper under [scorum-go](https://github.com/scorum/scorum-go).  
-
-## Usage
-
-```go
 import (
 	"context"
 	"time"
@@ -53,4 +45,3 @@ func main() {
 		}
 	}
 }
-```

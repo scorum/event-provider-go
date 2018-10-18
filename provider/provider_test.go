@@ -77,7 +77,7 @@ func TestProvider_GenesisBlock(t *testing.T) {
 			}
 			blockRetrieved = true
 		case b := <-ibCh:
-			require.EqualValues(t, b.BlockNum, 0)
+			require.EqualValues(t, 0, b.BlockNum)
 			require.NotEmpty(t, b.Events)
 			for _, e := range b.Events {
 				require.EqualValues(t, event.AccountCreateEventType, e.Type())
@@ -91,7 +91,7 @@ func TestProvider_GenesisBlock(t *testing.T) {
 	}
 }
 
-func TestProvider_OnlyIrreversibleBlocksOption(t *testing.T) {
+func TestProvider_Provide(t *testing.T) {
 	transport := http.NewTransport(nodeHTTP)
 	client := scorumgo.NewClient(transport)
 
@@ -116,6 +116,9 @@ func TestProvider_OnlyIrreversibleBlocksOption(t *testing.T) {
 	require.NoError(t, err)
 	blockNum := resp.BlockNum
 
+	headBlockNumber := properties.HeadBlockNumber
+	lastIrreversibleBlockNumber := properties.LastIrreversibleBlockNumber
+
 	blockRetrieved := false
 	irreversibleBlockRetrieved := false
 
@@ -128,17 +131,27 @@ func TestProvider_OnlyIrreversibleBlocksOption(t *testing.T) {
 		case <-time.Tick(5 * time.Minute):
 			t.Fatalf("failed by timeout")
 		case b := <-bCh:
-			require.NotEmpty(t, b.Events)
-			require.NotEmpty(t, b.Events)
-			require.True(t, b.BlockNum > properties.HeadBlockNumber)
-			require.EqualValues(t, blockNum, b.BlockNum)
-			blockRetrieved = true
+			require.False(t, b.BlockNum > blockNum)
+			if b.BlockNum == blockNum {
+				require.NotEmpty(t, b.Events)
+				require.NotEmpty(t, b.Events)
+				require.True(t, b.BlockNum > headBlockNumber)
+				require.EqualValues(t, blockNum, b.BlockNum)
+				blockRetrieved = true
+			}
 		case b := <-ibCh:
-			require.NotEmpty(t, b.Events)
-			require.True(t, b.BlockNum > properties.LastIrreversibleBlockNumber)
-			require.True(t, b.BlockNum < properties.LastIrreversibleBlockNumber+21)
-			require.Equal(t, blockNum, b.BlockNum)
-			irreversibleBlockRetrieved = true
+			require.False(t, b.BlockNum > blockNum)
+			if b.BlockNum == blockNum {
+				require.NotEmpty(t, b.Events)
+				require.True(t, b.BlockNum > lastIrreversibleBlockNumber)
+
+				properties, err := client.Chain.GetChainProperties()
+				require.NoError(t, err)
+
+				require.True(t, b.BlockNum <= properties.LastIrreversibleBlockNumber)
+				require.Equal(t, blockNum, b.BlockNum)
+				irreversibleBlockRetrieved = true
+			}
 		}
 
 		if blockRetrieved && irreversibleBlockRetrieved {

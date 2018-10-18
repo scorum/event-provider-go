@@ -108,6 +108,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 
 			}
 			blocksCh <- genesis
+			irreversibleBlocksCh <- genesis
 		}
 
 		for {

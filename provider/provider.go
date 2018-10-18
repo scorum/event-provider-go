@@ -10,6 +10,7 @@ import (
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
 	"github.com/scorum/scorum-go/transport/http"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -75,10 +76,15 @@ func NewProvider(url string, setters ...Option) *Provider {
 	}
 }
 
-func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.Type) (chan event.Block, chan error) {
+func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, eventTypes []event.Type) (chan event.Block, chan event.Block, chan error) {
+	if irreversibleFrom > from {
+		log.Warn("EventProvider: irreversibleFrom > from")
+	}
+
 	blocksCh := make(chan event.Block)
+	irreversibleBlocksCh := make(chan event.Block)
 	errCh := make(chan error)
-	go func(blocksCh chan event.Block, errCh chan error) {
+	go func(blocksCh, irreversibleBlocksCh chan event.Block, errCh chan error) {
 		// genesis block
 		if from == 0 {
 			accounts, err := p.getExistingAccounts()
@@ -99,8 +105,10 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 					&event.AccountCreateEvent{
 						Account: account,
 					})
+
 			}
 			blocksCh <- genesis
+			irreversibleBlocksCh <- genesis
 		}
 
 		for {
@@ -120,10 +128,11 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 				}
 
 				// GetBlockHistory has descending order
-				limit := properties.HeadBlockNumber - from
+				limit := properties.HeadBlockNumber - irreversibleFrom
 				if limit > p.Options.BlocksHistoryMaxLimit {
 					limit = p.Options.BlocksHistoryMaxLimit
 				}
+
 				offset := from + limit
 
 				history, err := p.getBlockHistory(offset, limit)
@@ -142,10 +151,6 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 					p.CurrentBlockNum = num
 
 					block := history[num]
-
-					if num > from {
-						from = num
-					}
 
 					timestamp, err := time.Parse(timeLayout, block.Timestamp)
 					if err != nil {
@@ -171,15 +176,28 @@ func (p *Provider) Provide(ctx context.Context, from uint32, eventTypes []event.
 					}
 
 					if len(eBlock.Events) != 0 {
-						blocksCh <- eBlock
+						if num <= properties.LastIrreversibleBlockNumber && num > irreversibleFrom {
+							irreversibleBlocksCh <- eBlock
+						}
+
+						if num > from {
+							blocksCh <- eBlock
+						}
+					}
+
+					if num > from {
+						from = num
+					}
+					if (num <= properties.LastIrreversibleBlockNumber) && (num > irreversibleFrom) {
+						irreversibleFrom = num
 					}
 				}
 			}
 		}
 
-	}(blocksCh, errCh)
+	}(blocksCh, irreversibleBlocksCh, errCh)
 
-	return blocksCh, errCh
+	return blocksCh, irreversibleBlocksCh, errCh
 }
 
 func (p *Provider) getExistingAccounts() ([]string, error) {

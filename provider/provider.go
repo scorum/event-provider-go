@@ -86,29 +86,41 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 	errCh := make(chan error)
 	go func(blocksCh, irreversibleBlocksCh chan event.Block, errCh chan error) {
 		// genesis block
+
 		if from == 0 {
-			accounts, err := p.getExistingAccounts()
-			if err != nil {
-				errCh <- err
-				return
+
+			accountCreateEventTypeFound := false
+			for _, eventType := range eventTypes {
+				if eventType == event.AccountCreateEventType {
+					accountCreateEventTypeFound = true
+					break
+				}
 			}
 
-			// genesis block
-			genesis := event.Block{
-				BlockID:   "",
-				BlockNum:  0,
-				Timestamp: time.Unix(0, 0),
-			}
+			if accountCreateEventTypeFound {
+				accounts, err := p.getExistingAccounts()
+				if err != nil {
+					errCh <- err
+					return
+				}
 
-			for _, account := range accounts {
-				genesis.Events = append(genesis.Events,
-					&event.AccountCreateEvent{
-						Account: account,
-					})
+				// genesis block
+				genesis := event.Block{
+					BlockID:   "",
+					BlockNum:  0,
+					Timestamp: time.Unix(0, 0),
+				}
 
+				for _, account := range accounts {
+					genesis.Events = append(genesis.Events,
+						&event.AccountCreateEvent{
+							Account: account,
+						})
+
+				}
+				blocksCh <- genesis
+				irreversibleBlocksCh <- genesis
 			}
-			blocksCh <- genesis
-			irreversibleBlocksCh <- genesis
 		}
 
 		for {

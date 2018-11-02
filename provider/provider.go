@@ -188,12 +188,12 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 					}
 
 					if len(eBlock.Events) != 0 {
-						if num <= properties.LastIrreversibleBlockNumber && num > irreversibleFrom {
-							irreversibleBlocksCh <- eBlock
-						}
-
 						if num > from {
 							blocksCh <- eBlock
+						}
+
+						if num <= properties.LastIrreversibleBlockNumber && num > irreversibleFrom {
+							irreversibleBlocksCh <- eBlock
 						}
 					}
 

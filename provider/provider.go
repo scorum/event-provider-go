@@ -106,7 +106,6 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 
 				// genesis block
 				genesis := event.Block{
-					BlockID:   "",
 					BlockNum:  0,
 					Timestamp: time.Unix(0, 0),
 				}
@@ -171,18 +170,16 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 					}
 
 					eBlock := event.Block{
-						BlockID:   block.BlockID,
 						BlockNum:  num,
 						Timestamp: timestamp,
 					}
-					for _, transaction := range block.Transactions {
-						for _, operation := range transaction.Operations {
-							ev := event.ToEvent(operation)
-							for _, eventType := range eventTypes {
-								if ev.Type() == eventType {
-									eBlock.Events = append(eBlock.Events, ev)
-									break
-								}
+
+					for _, operation := range block.Operations {
+						ev := event.ToEvent(operation.Operation)
+						for _, eventType := range eventTypes {
+							if ev.Type() == eventType {
+								eBlock.Events = append(eBlock.Events, ev)
+								break
 							}
 						}
 					}
@@ -263,9 +260,9 @@ func (p *Provider) getChainProperties() (prop *chain.ChainProperties, err error)
 	return
 }
 
-func (p *Provider) getBlockHistory(blockNum, limit uint32) (history blockchain_history.BlockHistory, err error) {
+func (p *Provider) getBlockHistory(blockNum, limit uint32) (history blockchain_history.Blocks, err error) {
 	TryDo(func(attempt int) (retry bool, err error) {
-		history, err = p.client.BlockchainHistory.GetBlocksHistory(blockNum, limit)
+		history, err = p.client.BlockchainHistory.GetBlocks(blockNum, limit)
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}

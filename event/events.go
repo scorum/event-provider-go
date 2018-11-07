@@ -46,7 +46,6 @@ func ToEvent(op types.Operation) Event {
 }
 
 type Block struct {
-	BlockID   string
 	BlockNum  uint32
 	Timestamp time.Time
 	Events    []Event

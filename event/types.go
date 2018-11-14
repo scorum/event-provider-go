@@ -18,4 +18,5 @@ const (
 	CancelPendingBetsEventType
 	BetsMatchedEventType
 	GameStatusChangedEventType
+	BetResolvedEventType
 )

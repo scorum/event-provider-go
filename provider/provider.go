@@ -134,7 +134,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 				}
 
 				if from >= properties.HeadBlockNumber {
-					time.Sleep(p.Options.ErrorRetryTimeout)
+					time.Sleep(p.Options.SyncInterval)
 					continue
 				}
 

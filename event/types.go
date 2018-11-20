@@ -19,4 +19,5 @@ const (
 	BetsMatchedEventType
 	GameStatusChangedEventType
 	BetResolvedEventType
+	BetCancelledEventType
 )

@@ -31,6 +31,7 @@ func init() {
 		types.BetsMatched:                       toBetsMatchedEvent,
 		types.GameStatusChanged:                 toGameStatusChangedEvent,
 		types.BetResolved:                       toBetResolvedEvent,
+		types.BetCancelled:                      toBetCancelledEvent,
 	}
 }
 
@@ -356,6 +357,23 @@ func toBetResolvedEvent(op types.Operation) Event {
 	}
 
 	return BetResolvedEvent{*e}
+}
+
+type BetCancelledEvent struct {
+	types.BetCancelledOperation
+}
+
+func (e BetCancelledEvent) Type() Type {
+	return BetCancelledEventType
+}
+
+func toBetCancelledEvent(op types.Operation) Event {
+	e, ok := op.(*types.BetCancelledOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return BetCancelledEvent{*e}
 }
 
 type UnknownEvent struct{}

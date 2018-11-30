@@ -1,0 +1,9 @@
+{
+    "search.useIgnoreFiles": false,
+    "[go]": {
+        "editor.insertSpaces": false,
+        "editor.formatOnSave": false
+    },
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": ["-exclude=vendor/...", "-config=${workspaceFolder}/config.toml"]
+}

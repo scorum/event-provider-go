@@ -133,6 +133,8 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 					return
 				}
 
+				log.Infof("head block number: %d; from: %d", properties.HeadBlockNumber, from)
+
 				if from >= properties.HeadBlockNumber {
 					time.Sleep(p.Options.SyncInterval)
 					continue

@@ -86,6 +86,9 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 	blocksCh := make(chan event.Block)
 	irreversibleBlocksCh := make(chan event.Block)
 	errCh := make(chan error)
+
+	log.Info("Middle log")
+
 	go func(blocksCh, irreversibleBlocksCh chan event.Block, errCh chan error) {
 		// genesis block
 
@@ -129,6 +132,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 			case <-ctx.Done():
 				return
 			default:
+				log.Info("Middle log 2")
 				properties, err := p.getChainProperties()
 				if err != nil {
 					errCh <- err
@@ -256,7 +260,12 @@ func (p *Provider) lookupAccounts(lowerBoundName string, limit uint16) (names []
 func (p *Provider) getChainProperties() (prop *chain.ChainProperties, err error) {
 	TryDo(func(attempt int) (retry bool, err error) {
 		prop, err = p.client.Chain.GetChainProperties()
+
+		// log.Debugf("getChainProperties dump: ", spew.Sdump(prop))
+
 		if err != nil {
+			log.Debugf("getChainProperties error retry: ")
+
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}
 		return attempt < p.Options.ErrorRetryLimit, err

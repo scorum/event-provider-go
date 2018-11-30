@@ -81,6 +81,8 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 		log.Warn("EventProvider: irreversibleFrom > from")
 	}
 
+	log.Infof("Provide starting... from : %d; irreversible from: %d", from, irreversibleFrom)
+
 	blocksCh := make(chan event.Block)
 	irreversibleBlocksCh := make(chan event.Block)
 	errCh := make(chan error)

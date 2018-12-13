@@ -87,8 +87,6 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 	irreversibleBlocksCh := make(chan event.Block)
 	errCh := make(chan error)
 
-	log.Info("Middle log")
-
 	go func(blocksCh, irreversibleBlocksCh chan event.Block, errCh chan error) {
 		// genesis block
 
@@ -132,14 +130,12 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 			case <-ctx.Done():
 				return
 			default:
-				log.Info("Middle log 2")
 				properties, err := p.getChainProperties()
+				
 				if err != nil {
 					errCh <- err
 					return
 				}
-
-				log.Infof("head block number: %d; from: %d", properties.HeadBlockNumber, from)
 
 				if from >= properties.HeadBlockNumber {
 					time.Sleep(p.Options.SyncInterval)

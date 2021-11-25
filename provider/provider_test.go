@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/scorum/event-provider-go/event"
-	"github.com/scorum/scorum-go"
+	scorumgo "github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/sign"
 	"github.com/scorum/scorum-go/transport/http"
 	"github.com/scorum/scorum-go/types"
@@ -92,6 +92,8 @@ func TestProvider_GenesisBlock(t *testing.T) {
 }
 
 func TestProvider_Provide(t *testing.T) {
+	t.Skip()
+
 	transport := http.NewTransport(nodeHTTP)
 	client := scorumgo.NewClient(transport)
 

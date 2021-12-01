@@ -1,4 +1,4 @@
-module github.com/kostassh/event-provider-go
+module github.com/scorum/event-provider-go
 
 go 1.16
 

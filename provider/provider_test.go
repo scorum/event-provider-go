@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/scorum/event-provider-go/event"
-	"github.com/scorum/scorum-go"
+	scorumgo "github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/sign"
 	"github.com/scorum/scorum-go/transport/http"
 	"github.com/scorum/scorum-go/types"
@@ -100,8 +100,8 @@ func TestProvider_Provide(t *testing.T) {
 
 	testOp := &types.VoteOperation{
 		Voter:    account,
-		Author:   "gina",
-		Permlink: "scorum-one-more-post",
+		Author:   "sheldon",
+		Permlink: "online-sportsbook-for-usa-residents-20-cashback-on-first-deposit",
 		Weight:   0,
 	}
 

@@ -2,7 +2,6 @@ package event
 
 import (
 	"errors"
-
 	"time"
 
 	"github.com/scorum/scorum-go/types"
@@ -32,6 +31,7 @@ func init() {
 		types.GameStatusChanged:                 toGameStatusChangedEvent,
 		types.BetResolved:                       toBetResolvedEvent,
 		types.BetCancelled:                      toBetCancelledEvent,
+		types.TransferOpType:                    toTransferEvent,
 	}
 }
 
@@ -374,6 +374,23 @@ func toBetCancelledEvent(op types.Operation) Event {
 	}
 
 	return BetCancelledEvent{*e}
+}
+
+type TransferEvent struct {
+	types.TransferOperation
+}
+
+func (e TransferEvent) Type() Type {
+	return TransferEventType
+}
+
+func toTransferEvent(op types.Operation) Event {
+	e, ok := op.(*types.TransferOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return TransferEvent{*e}
 }
 
 type UnknownEvent struct{}

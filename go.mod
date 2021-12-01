@@ -10,7 +10,6 @@ require (
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/scorum/event-provider-go v0.3.5
 	github.com/scorum/scorum-go v0.2.1
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.8.1

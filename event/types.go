@@ -21,4 +21,7 @@ const (
 	BetResolvedEventType
 	BetCancelledEventType
 	TransferEventType
+	CreateNFTEventType
+	UpdateNFTMetadataEventType
+	IncreaseNFTPowerEventType
 )

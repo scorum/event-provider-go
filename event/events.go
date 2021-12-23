@@ -32,6 +32,9 @@ func init() {
 		types.BetResolved:                       toBetResolvedEvent,
 		types.BetCancelled:                      toBetCancelledEvent,
 		types.TransferOpType:                    toTransferEvent,
+		types.CreateNFT:                         toCreateNFTEvent,
+		types.UpdateNFTMetadata:                 toUpdateNFTMetadataEvent,
+		types.IncreaseNFTPower:                  toIncreaseNFTPowerEvent,
 	}
 }
 
@@ -391,6 +394,57 @@ func toTransferEvent(op types.Operation) Event {
 	}
 
 	return TransferEvent{*e}
+}
+
+type CreateNFTEvent struct {
+	types.CreateNFTOperation
+}
+
+func (e CreateNFTEvent) Type() Type {
+	return CreateGameEventType
+}
+
+func toCreateNFTEvent(op types.Operation) Event {
+	e, ok := op.(*types.CreateNFTOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return CreateNFTEvent{*e}
+}
+
+type UpdateNFTMetadataEvent struct {
+	types.UpdateNFTMetadataOperation
+}
+
+func (e UpdateNFTMetadataEvent) Type() Type {
+	return UpdateNFTMetadataEventType
+}
+
+func toUpdateNFTMetadataEvent(op types.Operation) Event {
+	e, ok := op.(*types.UpdateNFTMetadataOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return UpdateNFTMetadataEvent{*e}
+}
+
+type IncreaseNFTPowerEvent struct {
+	types.IncreaseNFTPowerOperation
+}
+
+func (e IncreaseNFTPowerEvent) Type() Type {
+	return IncreaseNFTPowerEventType
+}
+
+func toIncreaseNFTPowerEvent(op types.Operation) Event {
+	e, ok := op.(*types.IncreaseNFTPowerOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return IncreaseNFTPowerEvent{*e}
 }
 
 type UnknownEvent struct{}

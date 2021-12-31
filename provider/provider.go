@@ -101,7 +101,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 			}
 
 			if accountCreateEventTypeFound {
-				accounts, err := p.getExistingAccounts()
+				accounts, err := p.getExistingAccounts(ctx)
 				if err != nil {
 					errCh <- err
 					return
@@ -130,8 +130,8 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 			case <-ctx.Done():
 				return
 			default:
-				properties, err := p.getChainProperties()
-				
+				properties, err := p.getChainProperties(ctx)
+
 				if err != nil {
 					errCh <- err
 					return
@@ -150,7 +150,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 
 				offset := from + limit
 
-				history, err := p.getBlockHistory(offset, limit)
+				history, err := p.getBlockHistory(ctx, offset, limit)
 				if err != nil {
 					errCh <- err
 					return
@@ -213,14 +213,14 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 	return blocksCh, irreversibleBlocksCh, errCh
 }
 
-func (p *Provider) getExistingAccounts() ([]string, error) {
+func (p *Provider) getExistingAccounts(ctx context.Context) ([]string, error) {
 	const lookupAccountsMaxLimit = 1000
 
 	lowerBound := ""
 	result := make([]string, 0, lookupAccountsMaxLimit)
 
 	for {
-		accounts, err := p.lookupAccounts(lowerBound, lookupAccountsMaxLimit)
+		accounts, err := p.lookupAccounts(ctx, lowerBound, lookupAccountsMaxLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -242,9 +242,9 @@ func (p *Provider) getExistingAccounts() ([]string, error) {
 	return result, nil
 }
 
-func (p *Provider) lookupAccounts(lowerBoundName string, limit uint16) (names []string, err error) {
+func (p *Provider) lookupAccounts(ctx context.Context, lowerBoundName string, limit uint16) (names []string, err error) {
 	TryDo(func(attempt int) (retry bool, err error) {
-		names, err = p.client.Database.LookupAccounts(lowerBoundName, limit)
+		names, err = p.client.Database.LookupAccounts(ctx, lowerBoundName, limit)
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}
@@ -253,9 +253,9 @@ func (p *Provider) lookupAccounts(lowerBoundName string, limit uint16) (names []
 	return
 }
 
-func (p *Provider) getChainProperties() (prop *chain.ChainProperties, err error) {
+func (p *Provider) getChainProperties(ctx context.Context) (prop *chain.ChainProperties, err error) {
 	TryDo(func(attempt int) (retry bool, err error) {
-		prop, err = p.client.Chain.GetChainProperties()
+		prop, err = p.client.Chain.GetChainProperties(ctx)
 
 		// log.Debugf("getChainProperties dump: ", spew.Sdump(prop))
 
@@ -269,9 +269,9 @@ func (p *Provider) getChainProperties() (prop *chain.ChainProperties, err error)
 	return
 }
 
-func (p *Provider) getBlockHistory(blockNum, limit uint32) (history blockchain_history.Blocks, err error) {
+func (p *Provider) getBlockHistory(ctx context.Context, blockNum, limit uint32) (history blockchain_history.Blocks, err error) {
 	TryDo(func(attempt int) (retry bool, err error) {
-		history, err = p.client.BlockchainHistory.GetBlocks(blockNum, limit)
+		history, err = p.client.BlockchainHistory.GetBlocks(ctx, blockNum, limit)
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}

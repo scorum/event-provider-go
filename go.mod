@@ -3,7 +3,7 @@ module github.com/scorum/event-provider-go
 go 1.17
 
 require (
-	github.com/scorum/scorum-go v0.2.1
+	github.com/scorum/scorum-go v0.2.4-0.20211231083338-7ce0d3a2bb36
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 )

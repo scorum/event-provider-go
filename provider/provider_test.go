@@ -95,7 +95,7 @@ func TestProvider_Provide(t *testing.T) {
 	transport := http.NewTransport(nodeHTTP)
 	client := scorumgo.NewClient(transport)
 
-	properties, err := client.Chain.GetChainProperties()
+	properties, err := client.Chain.GetChainProperties(context.Background())
 	require.NoError(t, err)
 
 	testOp := &types.VoteOperation{
@@ -145,7 +145,7 @@ func TestProvider_Provide(t *testing.T) {
 				require.NotEmpty(t, b.Events)
 				require.True(t, b.BlockNum > lastIrreversibleBlockNumber)
 
-				properties, err := client.Chain.GetChainProperties()
+				properties, err := client.Chain.GetChainProperties(context.Background())
 				require.NoError(t, err)
 
 				require.True(t, b.BlockNum <= properties.LastIrreversibleBlockNumber)

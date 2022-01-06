@@ -607,11 +607,11 @@ func (op *BetCancelledOperation) Type() OpType {
 }
 
 type CreateNFTOperation struct {
-	UUID         uuid.UUID `json:"uuid"`
 	OwnerAccount string    `json:"owner"`
+	UUID         uuid.UUID `json:"uuid"`
 	Name         string    `json:"name"`
 	JSONMetadata string    `json:"json_metadata"`
-	Power        uint64    `json:"power"`
+	Power        int64     `json:"power"`
 }
 
 func (op *CreateNFTOperation) Type() OpType {
@@ -621,8 +621,8 @@ func (op *CreateNFTOperation) Type() OpType {
 func (op *CreateNFTOperation) MarshalTransaction(encoder *transaction.Encoder) error {
 	enc := transaction.NewRollingEncoder(encoder)
 	enc.EncodeUVarint(uint64(op.Type().Code()))
-	enc.Encode(op.UUID)
 	enc.Encode(op.OwnerAccount)
+	enc.EncodeUUID(op.UUID)
 	enc.Encode(op.Name)
 	enc.Encode(op.JSONMetadata)
 	enc.Encode(op.Power)
@@ -630,8 +630,8 @@ func (op *CreateNFTOperation) MarshalTransaction(encoder *transaction.Encoder) e
 }
 
 type UpdateNFTMetadataOperation struct {
-	UUID         uuid.UUID `json:"uuid"`
 	Moderator    string    `json:"moderator"`
+	UUID         uuid.UUID `json:"uuid"`
 	JSONMetadata string    `json:"json_metadata"`
 }
 
@@ -642,14 +642,14 @@ func (op *UpdateNFTMetadataOperation) Type() OpType {
 func (op *UpdateNFTMetadataOperation) MarshalTransaction(encoder *transaction.Encoder) error {
 	enc := transaction.NewRollingEncoder(encoder)
 	enc.EncodeUVarint(uint64(op.Type().Code()))
-	enc.Encode(op.UUID)
 	enc.Encode(op.Moderator)
+	enc.EncodeUUID(op.UUID)
 	enc.Encode(op.JSONMetadata)
 	return enc.Err()
 }
 
 type CreateGameRoundOperation struct {
-	Account         string    `json:"account"`
+	Owner           string    `json:"owner"`
 	UUID            uuid.UUID `json:"uuid"`
 	VerificationKey string    `json:"verification_key"`
 	Seed            string    `json:"seed"`
@@ -660,19 +660,19 @@ func (op *CreateGameRoundOperation) Type() OpType { return CreateGameRound }
 func (op *CreateGameRoundOperation) MarshalTransaction(encoder *transaction.Encoder) error {
 	enc := transaction.NewRollingEncoder(encoder)
 	enc.EncodeUVarint(uint64(op.Type().Code()))
-	enc.Encode(op.Account)
-	enc.Encode(op.UUID)
+	enc.Encode(op.Owner)
+	enc.EncodeUUID(op.UUID)
 	enc.Encode(op.VerificationKey)
 	enc.Encode(op.Seed)
 	return enc.Err()
 }
 
 type GameRoundResultOperation struct {
-	Account string    `json:"account"`
-	UUID    uuid.UUID `json:"uuid"`
-	Proof   string    `json:"proof"`
-	Vrf     string    `json:"vrf"`
-	Result  string    `json:"result"`
+	Owner  string    `json:"owner"`
+	UUID   uuid.UUID `json:"uuid"`
+	Proof  string    `json:"proof"`
+	Vrf    string    `json:"vrf"`
+	Result int64     `json:"result"`
 }
 
 func (op *GameRoundResultOperation) Type() OpType { return GameRoundResult }
@@ -680,8 +680,8 @@ func (op *GameRoundResultOperation) Type() OpType { return GameRoundResult }
 func (op *GameRoundResultOperation) MarshalTransaction(encoder *transaction.Encoder) error {
 	enc := transaction.NewRollingEncoder(encoder)
 	enc.EncodeUVarint(uint64(op.Type().Code()))
-	enc.Encode(op.Account)
-	enc.Encode(op.UUID)
+	enc.Encode(op.Owner)
+	enc.EncodeUUID(op.UUID)
 	enc.Encode(op.Proof)
 	enc.Encode(op.Vrf)
 	enc.Encode(op.Result)

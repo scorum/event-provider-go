@@ -51,8 +51,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rogpeppe/go-internal v1.6.1 h1:/FiVV8dS/e+YqF2JvO3yXRFbBLTIuSDkuC7aBOAvL+k=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
-github.com/scorum/scorum-go v0.2.4-0.20211231083338-7ce0d3a2bb36 h1:svkJNILJrG1ZrLUxC5tU3qX+tTDJfyLrcbVvUEbSkUY=
-github.com/scorum/scorum-go v0.2.4-0.20211231083338-7ce0d3a2bb36/go.mod h1:/KOir/V23QSYrrNp51vYvE5d9zfb5b/ha03qx5ohNc4=
+github.com/scorum/scorum-go v0.3.1 h1:v5cwbj8zdsZtW4HPJpPU6ZNWsEx1RatBMBS1y5uN38c=
+github.com/scorum/scorum-go v0.3.1/go.mod h1:/KOir/V23QSYrrNp51vYvE5d9zfb5b/ha03qx5ohNc4=
 github.com/shopspring/decimal v1.3.1 h1:2Usl1nmF/WZucqkFZhnfFYxxxu8LG21F6nPQBE5gKV8=
 github.com/shopspring/decimal v1.3.1/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
 github.com/sirupsen/logrus v1.8.1 h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE=

@@ -30,7 +30,7 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/scorum/scorum-go v0.3.1
+# github.com/scorum/scorum-go v0.3.2-0.20220210062542-1a8900ec1e97
 ## explicit
 github.com/scorum/scorum-go
 github.com/scorum/scorum-go/apis/account_history

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	nodeHTTP = "https://testnet.scorum.com"
+	nodeHTTP = "https://testnet.scorum.work"
 	account  = "roselle"
 	wif      = "5JwWJ2m2jGG9RPcpDix5AvkDzQZJoZvpUQScsDzzXWAKMs8Q6jH"
 )

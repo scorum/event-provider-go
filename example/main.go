@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	provider := provider.NewProvider("https://testnet.scorum.com", provider.SyncInterval(time.Second))
+	provider := provider.NewProvider("https://testnet.scorum.work", provider.SyncInterval(time.Second))
 
 	ctx, cancel := context.WithCancel(context.Background())
 

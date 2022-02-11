@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -70,7 +71,11 @@ type Provider struct {
 	retryLimit            int
 
 	// mutable
-	CurrentBlockNum uint32
+	currentBlockNum uint32
+}
+
+func (p Provider) GetCurrentBlockNum() uint32 {
+	return atomic.LoadUint32(&p.currentBlockNum)
 }
 
 // NewProvider construct new provider
@@ -110,7 +115,7 @@ func NewProvider(transport caller.CallCloser, options ...Option) *Provider {
 	return &p
 }
 
-func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, eventTypes []event.Type) (chan event.Block, chan event.Block, chan error) {
+func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, eventTypes []event.Type) (<-chan event.Block, <-chan event.Block, <-chan error) {
 	if irreversibleFrom > from {
 		log.Warn("EventProvider: irreversibleFrom > from")
 	}
@@ -121,11 +126,9 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 	irreversibleBlocksCh := make(chan event.Block)
 	errCh := make(chan error)
 
-	go func(blocksCh, irreversibleBlocksCh chan event.Block, errCh chan error) {
+	go func(blocksCh, irreversibleBlocksCh chan<- event.Block, errCh chan<- error) {
 		// genesis block
-
 		if from == 0 {
-
 			accountCreateEventTypeFound := false
 			for _, eventType := range eventTypes {
 				if eventType == event.AccountCreateEventType {
@@ -152,7 +155,6 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 						&event.AccountCreateEvent{
 							Account: account,
 						})
-
 				}
 				blocksCh <- genesis
 				irreversibleBlocksCh <- genesis
@@ -197,7 +199,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 				sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
 
 				for _, num := range nums {
-					p.CurrentBlockNum = num
+					atomic.StoreUint32(&p.currentBlockNum, num)
 
 					block := history[num]
 
@@ -241,7 +243,6 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 				}
 			}
 		}
-
 	}(blocksCh, irreversibleBlocksCh, errCh)
 
 	return blocksCh, irreversibleBlocksCh, errCh

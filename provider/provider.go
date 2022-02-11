@@ -5,75 +5,109 @@ import (
 	"sort"
 	"time"
 
-	"github.com/scorum/event-provider-go/event"
-	"github.com/scorum/scorum-go"
-	"github.com/scorum/scorum-go/apis/blockchain_history"
-	"github.com/scorum/scorum-go/apis/chain"
-	"github.com/scorum/scorum-go/transport/http"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/scorum/event-provider-go/event"
+	scorumgo "github.com/scorum/scorum-go"
+	"github.com/scorum/scorum-go/caller"
+	"github.com/scorum/scorum-go/retrycaller"
 )
 
 const (
 	timeLayout = "2006-01-02T15:04:05"
 )
 
-type Options struct {
-	// SyncInterval is an interval to poll the blockchain
-	SyncInterval          time.Duration
-	BlocksHistoryMaxLimit uint32
-	ErrorRetryTimeout     time.Duration
-	ErrorRetryLimit       int
-}
+type Option func(*Provider)
 
-type Option func(*Options)
-
-func SyncInterval(interval time.Duration) Option {
-	return func(args *Options) {
-		args.SyncInterval = interval
+func WithSyncInterval(interval time.Duration) Option {
+	return func(p *Provider) {
+		p.syncInterval = interval
 	}
 }
 
-func BlocksHistoryMaxLimit(limit uint32) Option {
-	return func(args *Options) {
-		args.BlocksHistoryMaxLimit = limit
+func WithBlocksHistoryMaxLimit(limit uint32) Option {
+	return func(p *Provider) {
+		p.blocksHistoryMaxLimit = limit
 	}
 }
 
-func ErrorRetryTimeout(timeout time.Duration) Option {
-	return func(args *Options) {
-		args.ErrorRetryTimeout = timeout
+func WithRetryTimeout(timeout time.Duration) Option {
+	return func(p *Provider) {
+		p.retryTimeout = timeout
 	}
 }
 
-func ErrorRetryLimit(limit int) Option {
-	return func(args *Options) {
-		args.ErrorRetryLimit = limit
+func WithRetryLimit(limit int) Option {
+	return func(p *Provider) {
+		p.retryLimit = limit
 	}
+}
+
+func WithOutRetry() Option {
+	return func(p *Provider) {
+		p.retryLimit = 0
+		p.retryTimeout = 0
+	}
+}
+
+func withRetry(transport caller.CallCloser, timeout time.Duration, limit int) caller.CallCloser {
+	if timeout == 0 && limit == 0 {
+		return transport
+	}
+
+	retryOptions := retrycaller.RetryOptions{
+		Timeout:    timeout,
+		RetryLimit: limit,
+	}
+	return retrycaller.NewRetryCaller(transport, retrycaller.WithDefaultRetry(retryOptions))
 }
 
 type Provider struct {
-	client          *scorumgo.Client
-	Options         *Options
+	client                *scorumgo.Client
+	syncInterval          time.Duration
+	blocksHistoryMaxLimit uint32
+	retryTimeout          time.Duration
+	retryLimit            int
+
+	// mutable
 	CurrentBlockNum uint32
 }
 
-func NewProvider(url string, setters ...Option) *Provider {
-	args := &Options{
-		SyncInterval:          time.Second,
-		BlocksHistoryMaxLimit: 100,
-		ErrorRetryTimeout:     10 * time.Second,
-		ErrorRetryLimit:       3,
+// NewProvider construct new provider
+//
+// with default options:
+// 	transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+// 	provider := provider.NewProvider(transport)
+//
+// with custom options:
+// 	transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+// 	provider := provider.NewProvider(
+// 		transport,
+// 		provider.WithSyncInterval(time.Second),
+// 		provider.WithBlocksHistoryMaxLimit(100),
+// 		provider.WithRetryTimeout(10*time.Second),
+// 		provider.WithRetryLimit(3),
+//	)
+//
+// without retry:
+// 	transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+// 	provider := provider.NewProvider(transport, provider.WithOutRetry())
+//
+func NewProvider(transport caller.CallCloser, options ...Option) *Provider {
+	p := Provider{
+		syncInterval:          time.Second,
+		blocksHistoryMaxLimit: 100,
+		retryLimit:            3,
+		retryTimeout:          10 * time.Second,
 	}
 
-	for _, setter := range setters {
-		setter(args)
+	for _, option := range options {
+		option(&p)
 	}
 
-	transport := http.NewTransport(url)
-	return &Provider{
-		client:  scorumgo.NewClient(transport),
-		Options: args,
-	}
+	p.client = scorumgo.NewClient(withRetry(transport, p.retryTimeout, p.retryLimit))
+
+	return &p
 }
 
 func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, eventTypes []event.Type) (chan event.Block, chan event.Block, chan error) {
@@ -130,7 +164,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 			case <-ctx.Done():
 				return
 			default:
-				properties, err := p.getChainProperties(ctx)
+				properties, err := p.client.Chain.GetChainProperties(ctx)
 
 				if err != nil {
 					errCh <- err
@@ -138,19 +172,19 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 				}
 
 				if from >= properties.HeadBlockNumber {
-					time.Sleep(p.Options.SyncInterval)
+					time.Sleep(p.syncInterval)
 					continue
 				}
 
 				// GetBlockHistory has descending order
 				limit := properties.HeadBlockNumber - irreversibleFrom
-				if limit > p.Options.BlocksHistoryMaxLimit {
-					limit = p.Options.BlocksHistoryMaxLimit
+				if limit > p.blocksHistoryMaxLimit {
+					limit = p.blocksHistoryMaxLimit
 				}
 
 				offset := from + limit
 
-				history, err := p.getBlockHistory(ctx, offset, limit)
+				history, err := p.client.BlockchainHistory.GetBlocks(ctx, offset, limit)
 				if err != nil {
 					errCh <- err
 					return
@@ -220,7 +254,7 @@ func (p *Provider) getExistingAccounts(ctx context.Context) ([]string, error) {
 	result := make([]string, 0, lookupAccountsMaxLimit)
 
 	for {
-		accounts, err := p.lookupAccounts(ctx, lowerBound, lookupAccountsMaxLimit)
+		accounts, err := p.client.Database.LookupAccounts(ctx, lowerBound, lookupAccountsMaxLimit)
 		if err != nil {
 			return nil, err
 		}
@@ -240,42 +274,4 @@ func (p *Provider) getExistingAccounts(ctx context.Context) ([]string, error) {
 	}
 
 	return result, nil
-}
-
-func (p *Provider) lookupAccounts(ctx context.Context, lowerBoundName string, limit uint16) (names []string, err error) {
-	TryDo(func(attempt int) (retry bool, err error) {
-		names, err = p.client.Database.LookupAccounts(ctx, lowerBoundName, limit)
-		if err != nil {
-			time.Sleep(p.Options.ErrorRetryTimeout)
-		}
-		return attempt < p.Options.ErrorRetryLimit, err
-	})
-	return
-}
-
-func (p *Provider) getChainProperties(ctx context.Context) (prop *chain.ChainProperties, err error) {
-	TryDo(func(attempt int) (retry bool, err error) {
-		prop, err = p.client.Chain.GetChainProperties(ctx)
-
-		// log.Debugf("getChainProperties dump: ", spew.Sdump(prop))
-
-		if err != nil {
-			log.Debugf("getChainProperties error retry: ")
-
-			time.Sleep(p.Options.ErrorRetryTimeout)
-		}
-		return attempt < p.Options.ErrorRetryLimit, err
-	})
-	return
-}
-
-func (p *Provider) getBlockHistory(ctx context.Context, blockNum, limit uint32) (history blockchain_history.Blocks, err error) {
-	TryDo(func(attempt int) (retry bool, err error) {
-		history, err = p.client.BlockchainHistory.GetBlocks(ctx, blockNum, limit)
-		if err != nil {
-			time.Sleep(p.Options.ErrorRetryTimeout)
-		}
-		return attempt < p.Options.ErrorRetryLimit, err
-	})
-	return
 }

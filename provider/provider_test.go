@@ -5,22 +5,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/scorum/event-provider-go/event"
 	scorumgo "github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/sign"
-	"github.com/scorum/scorum-go/transport/http"
+	scorumhttp "github.com/scorum/scorum-go/transport/http"
 	"github.com/scorum/scorum-go/types"
-	"github.com/stretchr/testify/require"
 )
 
 const (
-	nodeHTTP = "https://testnet.scorum.work"
-	account  = "roselle"
-	wif      = "5JwWJ2m2jGG9RPcpDix5AvkDzQZJoZvpUQScsDzzXWAKMs8Q6jH"
+	url     = "https://testnet.scorum.work"
+	account = "roselle"
+	wif     = "5JwWJ2m2jGG9RPcpDix5AvkDzQZJoZvpUQScsDzzXWAKMs8Q6jH"
 )
 
 func TestProvider(t *testing.T) {
-	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
+	transport := scorumhttp.NewTransport(url)
+	provider := NewProvider(transport, WithSyncInterval(time.Second))
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -52,7 +54,8 @@ func TestProvider(t *testing.T) {
 }
 
 func TestProvider_GenesisBlock(t *testing.T) {
-	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
+	transport := scorumhttp.NewTransport(url)
+	provider := NewProvider(transport, WithSyncInterval(time.Second))
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -92,7 +95,7 @@ func TestProvider_GenesisBlock(t *testing.T) {
 }
 
 func TestProvider_Provide(t *testing.T) {
-	transport := http.NewTransport(nodeHTTP)
+	transport := scorumhttp.NewTransport(url)
 	client := scorumgo.NewClient(transport)
 
 	properties, err := client.Chain.GetChainProperties(context.Background())
@@ -105,7 +108,7 @@ func TestProvider_Provide(t *testing.T) {
 		Weight:   0,
 	}
 
-	provider := NewProvider(nodeHTTP, SyncInterval(time.Second))
+	provider := NewProvider(transport, WithSyncInterval(time.Second))
 
 	ctx, cancel := context.WithCancel(context.Background())
 

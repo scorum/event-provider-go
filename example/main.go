@@ -2,19 +2,27 @@ package main
 
 import (
 	"context"
-	"time"
-
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/scorum/event-provider-go/event"
 	"github.com/scorum/event-provider-go/provider"
-	log "github.com/sirupsen/logrus"
+	scorumhttp "github.com/scorum/scorum-go/transport/http"
 )
 
 func main() {
-	provider := provider.NewProvider("https://testnet.scorum.work", provider.SyncInterval(time.Second))
+	transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+	provider := provider.NewProvider(
+		transport,
+		provider.WithSyncInterval(time.Second),
+		provider.WithBlocksHistoryMaxLimit(100),
+		provider.WithRetryTimeout(10*time.Second),
+		provider.WithRetryLimit(3),
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

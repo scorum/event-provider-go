@@ -1,11 +1,39 @@
 # scorum/event-provider-go
 [![Go Report Card](https://goreportcard.com/badge/github.com/scorum/event-provider-go)](https://goreportcard.com/report/github.com/scorum/event-provider-go)
 [![GoDoc](https://godoc.org/github.com/scorum/event-provider-go?status.svg)](https://godoc.org/github.com/scorum/event-provider-go)
-[![Build Status](https://travis-ci.org/scorum/event-provider-go.svg?branch=master)](https://travis-ci.org/scorum/event-provider-go.svg?branch=master)
+[![Build Status](https://github.com/scorum/event-provider-go/actions/workflows/main.yml/badge.svg?event=push)](https://github.com/scorum/event-provider-go/actions)
 
-Golang wrapper under [scorum-go](https://github.com/scorum/scorum-go).  
+Golang wrapper under [scorum-go](https://github.com/scorum/scorum-go).
+
 
 ## Usage
+
+### with default options:
+```go
+transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+provider := provider.NewProvider(transport)
+```
+
+### with custom options:
+```go
+transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+provider := provider.NewProvider(
+    transport,
+    provider.WithSyncInterval(time.Second),
+    provider.WithBlocksHistoryMaxLimit(100),
+    provider.WithRetryTimeout(10*time.Second),
+    provider.WithRetryLimit(3),
+)
+```
+
+### without retry:
+```go
+transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+provider := provider.NewProvider(transport, provider.WithOutRetry())
+```
+
+
+## Example
 
 ```go
 import (
@@ -16,13 +44,15 @@ import (
 	"os/signal"
 	"syscall"
 
+	scorumhttp "github.com/scorum/scorum-go/http"
 	"github.com/scorum/event-provider-go/event"
 	"github.com/scorum/event-provider-go/provider"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	provider := provider.NewProvider("https://testnet.scorum.com", provider.SyncInterval(time.Second))
+	transport := scorumhttp.NewTransport("https://testnet.scorum.work")
+	provider := provider.NewProvider(transport, provider.SyncInterval(time.Second))
 
 	ctx, cancel := context.WithCancel(context.Background())
 

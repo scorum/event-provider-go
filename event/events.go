@@ -36,6 +36,7 @@ func init() {
 		types.UpdateNFTMetadata:                 toUpdateNFTMetadataEvent,
 		types.CreateGameRound:                   toCreateGameRoundEvent,
 		types.UpdateGameRoundResult:             toUpdateGameRoundResultEvent,
+		types.BurnOperationOpType:               toBurnEvent,
 	}
 }
 
@@ -463,6 +464,23 @@ func toUpdateGameRoundResultEvent(op types.Operation) Event {
 	}
 
 	return UpdateGameRoundResultEvent{*e}
+}
+
+type BurnEvent struct {
+	types.BurnOperation
+}
+
+func (e BurnEvent) Type() Type {
+	return BurnEventType
+}
+
+func toBurnEvent(op types.Operation) Event {
+	e, ok := op.(*types.BurnOperation)
+	if !ok {
+		panic(errWrongEventType)
+	}
+
+	return BurnEvent{*e}
 }
 
 type UnknownEvent struct{}

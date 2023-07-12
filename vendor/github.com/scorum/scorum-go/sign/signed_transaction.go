@@ -6,10 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcutil"
-	"github.com/pkg/errors"
 	"github.com/scorum/scorum-go/encoding/transaction"
+	"github.com/scorum/scorum-go/key"
 	"github.com/scorum/scorum-go/types"
 )
 
@@ -31,17 +29,11 @@ func (tx *SignedTransaction) Serialize() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (tx *SignedTransaction) Digest(chain *Chain) ([]byte, error) {
+func (tx *SignedTransaction) Digest(chainID []byte) ([]byte, error) {
 	var msgBuffer bytes.Buffer
 
-	// Write the chain ID.
-	rawChainID, err := hex.DecodeString(chain.ID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode chain ID: %v", chain.ID)
-	}
-
-	if _, err := msgBuffer.Write(rawChainID); err != nil {
-		return nil, errors.Wrap(err, "failed to write chain ID")
+	if _, err := msgBuffer.Write(chainID); err != nil {
+		return nil, fmt.Errorf("failed to write chain ID: %w", err)
 	}
 
 	// Write the serialized transaction.
@@ -51,7 +43,7 @@ func (tx *SignedTransaction) Digest(chain *Chain) ([]byte, error) {
 	}
 
 	if _, err := msgBuffer.Write(rawTx); err != nil {
-		return nil, errors.Wrap(err, "failed to write serialized transaction")
+		return nil, fmt.Errorf("failed to write serialized transaction: %w", err)
 	}
 
 	// Compute the digest.
@@ -59,66 +51,40 @@ func (tx *SignedTransaction) Digest(chain *Chain) ([]byte, error) {
 	return digest[:], nil
 }
 
-func (tx *SignedTransaction) Sign(wifs []string, chain *Chain) error {
-	digest, err := tx.Digest(chain)
+func (tx *SignedTransaction) Sign(chainID []byte, keys ...*key.PrivateKey) error {
+	digest, err := tx.Digest(chainID)
 	if err != nil {
 		return err
 	}
 
-	privKeys := make([]*btcec.PrivateKey, len(wifs))
-	for index, wif := range wifs {
-		w, err := btcutil.DecodeWIF(wif)
-		if err != nil {
-			return err
-		}
-		privKeys[index] = w.PrivKey
+	sigsHex := make([]string, len(keys))
+	for i, k := range keys {
+		sig := k.Sign(digest)
+		sigsHex[i] = hex.EncodeToString(sig)
 	}
 
-	// Set the signature array in the transaction.
-	sigsHex := make([]string, len(privKeys))
-	for index, privKey := range privKeys {
-		sig := SignBufferSha256(digest, privKey.ToECDSA())
-		sigsHex[index] = hex.EncodeToString(sig)
-	}
 	tx.Transaction.Signatures = sigsHex
 	return nil
 }
 
-func (tx *SignedTransaction) Verify(chain *Chain, keys [][]byte) (bool, error) {
-	dig, err := tx.Digest(chain)
+func (tx *SignedTransaction) Verify(chainID []byte, keys ...*key.PublicKey) error {
+	dig, err := tx.Digest(chainID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get digest: %w", err)
+		return fmt.Errorf("failed to get digest: %w", err)
 	}
 
-	pubKeysFound := make([]*btcec.PublicKey, 0, len(tx.Signatures))
 	for _, signature := range tx.Signatures {
 		sig, err := hex.DecodeString(signature)
 		if err != nil {
-			return false, fmt.Errorf("failed to decode signature: %w", err)
+			return fmt.Errorf("failed to decode signature: %w", err)
 		}
 
-		p, _, err := btcec.RecoverCompact(btcec.S256(), sig, dig)
-		if err != nil {
-			return false, fmt.Errorf("failed to RecoverCompact: %w", err)
-		}
-
-		pubKeysFound = append(pubKeysFound, p)
-	}
-
-find:
-	for _, pub := range pubKeysFound {
-		for _, v := range keys {
-			pb, err := btcec.ParsePubKey(v, btcec.S256())
-			if err != nil {
-				return false, fmt.Errorf("failed to parse pub key: %w", err)
-			}
-
-			if pub.IsEqual(pb) {
-				continue find
+		for _, k := range keys {
+			if err := k.Verify(dig, sig); err != nil {
+				return fmt.Errorf("verify signature: %w", err)
 			}
 		}
-		return false, nil
 	}
 
-	return true, nil
+	return nil
 }

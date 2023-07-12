@@ -24,4 +24,5 @@ const (
 	CreateNFTEventType
 	UpdateNFTMetadataEventType
 	IncreaseNFTPowerEventType
+	BurnEventType
 )

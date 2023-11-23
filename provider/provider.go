@@ -9,7 +9,7 @@ import (
 	"github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
-	"github.com/scorum/scorum-go/transport/http"
+	"github.com/scorum/scorum-go/rpc"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,7 +69,7 @@ func NewProvider(url string, setters ...Option) *Provider {
 		setter(args)
 	}
 
-	transport := http.NewTransport(url)
+	transport := rpc.NewHTTPTransport(url)
 	return &Provider{
 		client:  scorumgo.NewClient(transport),
 		Options: args,

@@ -7,8 +7,10 @@ import (
 
 	"github.com/scorum/event-provider-go/event"
 	scorumgo "github.com/scorum/scorum-go"
+	"github.com/scorum/scorum-go/key"
+	"github.com/scorum/scorum-go/rpc"
 	"github.com/scorum/scorum-go/sign"
-	"github.com/scorum/scorum-go/transport/http"
+
 	"github.com/scorum/scorum-go/types"
 	"github.com/stretchr/testify/require"
 )
@@ -92,7 +94,7 @@ func TestProvider_GenesisBlock(t *testing.T) {
 }
 
 func TestProvider_Provide(t *testing.T) {
-	transport := http.NewTransport(nodeHTTP)
+	transport := rpc.NewHTTPTransport(nodeHTTP)
 	client := scorumgo.NewClient(transport)
 
 	properties, err := client.Chain.GetChainProperties(context.Background())
@@ -112,7 +114,10 @@ func TestProvider_Provide(t *testing.T) {
 	bCh, ibCh, eCh := provider.Provide(ctx, properties.HeadBlockNumber, properties.LastIrreversibleBlockNumber,
 		[]event.Type{event.AccountCreateEventType, event.VoteEventType, event.UnknownEventType})
 
-	resp, err := client.Broadcast(sign.TestChain, []string{wif}, testOp)
+	k, err := key.PrivateKeyFromString(wif)
+	require.NoError(t, err)
+
+	resp, err := client.BroadcastTransactionSynchronous(context.TODO(), sign.TestNetChainID, []types.Operation{testOp}, k)
 	require.NoError(t, err)
 	blockNum := resp.BlockNum
 
@@ -131,6 +136,10 @@ func TestProvider_Provide(t *testing.T) {
 		case <-time.Tick(5 * time.Minute):
 			t.Fatalf("failed by timeout")
 		case b := <-bCh:
+			if blockRetrieved {
+				continue
+			}
+
 			require.False(t, b.BlockNum > blockNum)
 			if b.BlockNum == blockNum {
 				require.NotEmpty(t, b.Events)
@@ -140,6 +149,10 @@ func TestProvider_Provide(t *testing.T) {
 				blockRetrieved = true
 			}
 		case b := <-ibCh:
+			if irreversibleBlockRetrieved {
+				continue
+			}
+
 			require.False(t, b.BlockNum > blockNum)
 			if b.BlockNum == blockNum {
 				require.NotEmpty(t, b.Events)

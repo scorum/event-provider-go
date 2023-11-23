@@ -51,6 +51,7 @@ var opTypes = []OpType{
 	AtomicswapInitiateOperation,
 	AtomicswapRedeemOperation,
 	AtomicswapRefundOperation,
+	BurnOperationOpType,
 
 	CloseBudgetByAdvertisingModeratorOperation,
 	UpdateBudgetOperation,
@@ -69,6 +70,8 @@ var opTypes = []OpType{
 	UpdateNFTMetadata,
 	CreateGameRound,
 	UpdateGameRoundResult,
+	AdjustNFTExperience,
+	UpdateNFTName,
 
 	// virtual operations
 	CommentBenefactorReward,
@@ -135,6 +138,7 @@ const (
 	AtomicswapInitiateOperation          OpType = "atomicswap_initiate_operation"
 	AtomicswapRedeemOperation            OpType = "atomicswap_redeem_operation"
 	AtomicswapRefundOperation            OpType = "atomicswap_refund_operation"
+	BurnOperationOpType                  OpType = "burn"
 
 	CloseBudgetByAdvertisingModeratorOperation OpType = "close_budget_by_advertising_moderator"
 	UpdateBudgetOperation                      OpType = "update_budget"
@@ -153,6 +157,8 @@ const (
 	UpdateNFTMetadata     OpType = "update_nft_meta"
 	CreateGameRound       OpType = "create_game_round"
 	UpdateGameRoundResult OpType = "update_game_round_result"
+	AdjustNFTExperience   OpType = "adjust_nft_experience"
+	UpdateNFTName         OpType = "update_nft_name"
 
 	// virtual operations
 	AuthorReward                OpType = "author_reward"

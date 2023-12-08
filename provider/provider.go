@@ -23,6 +23,7 @@ type Options struct {
 	BlocksHistoryMaxLimit uint32
 	ErrorRetryTimeout     time.Duration
 	ErrorRetryLimit       int
+	ProvideEmptyBlocks    bool
 }
 
 type Option func(*Options)
@@ -51,6 +52,12 @@ func ErrorRetryLimit(limit int) Option {
 	}
 }
 
+func ProvideEmptyBlocks(v bool) Option {
+	return func(args *Options) {
+		args.ProvideEmptyBlocks = v
+	}
+}
+
 type Provider struct {
 	client          *scorumgo.Client
 	Options         *Options
@@ -63,6 +70,7 @@ func NewProvider(url string, setters ...Option) *Provider {
 		BlocksHistoryMaxLimit: 100,
 		ErrorRetryTimeout:     10 * time.Second,
 		ErrorRetryLimit:       3,
+		ProvideEmptyBlocks:    false,
 	}
 
 	for _, setter := range setters {
@@ -91,7 +99,6 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 		// genesis block
 
 		if from == 0 {
-
 			accountCreateEventTypeFound := false
 			for _, eventType := range eventTypes {
 				if eventType == event.AccountCreateEventType {
@@ -188,7 +195,7 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 						}
 					}
 
-					if len(eBlock.Events) != 0 {
+					if len(eBlock.Events) != 0 || p.Options.ProvideEmptyBlocks {
 						if num > from {
 							blocksCh <- eBlock
 						}

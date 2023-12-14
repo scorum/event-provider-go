@@ -9,6 +9,7 @@ import (
 	"github.com/scorum/scorum-go"
 	"github.com/scorum/scorum-go/apis/blockchain_history"
 	"github.com/scorum/scorum-go/apis/chain"
+	"github.com/scorum/scorum-go/caller"
 	"github.com/scorum/scorum-go/rpc"
 	log "github.com/sirupsen/logrus"
 )
@@ -57,7 +58,7 @@ type Provider struct {
 	CurrentBlockNum uint32
 }
 
-func NewProvider(url string, setters ...Option) *Provider {
+func NewProviderWithClient(client caller.CallCloser, setters ...Option) *Provider {
 	args := &Options{
 		SyncInterval:          time.Second,
 		BlocksHistoryMaxLimit: 100,
@@ -69,11 +70,14 @@ func NewProvider(url string, setters ...Option) *Provider {
 		setter(args)
 	}
 
-	transport := rpc.NewHTTPTransport(url)
 	return &Provider{
-		client:  scorumgo.NewClient(transport),
+		client:  scorumgo.NewClient(client),
 		Options: args,
 	}
+}
+
+func NewProvider(url string, setters ...Option) *Provider {
+	return NewProviderWithClient(rpc.NewHTTPTransport(url), setters...)
 }
 
 func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, eventTypes []event.Type) (chan event.Block, chan event.Block, chan error) {
@@ -204,6 +208,8 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 					if (num <= properties.LastIrreversibleBlockNumber) && (num > irreversibleFrom) {
 						irreversibleFrom = num
 					}
+
+					time.Sleep(p.Options.SyncInterval)
 				}
 			}
 		}

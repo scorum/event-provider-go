@@ -273,7 +273,7 @@ func (p *Provider) getChainProperties(ctx context.Context) (prop *chain.ChainPro
 		// log.Debugf("getChainProperties dump: ", spew.Sdump(prop))
 
 		if err != nil {
-			log.Debugf("getChainProperties error retry: ")
+			log.WithError(err).Error("getChainProperties error retry")
 
 			time.Sleep(p.Options.ErrorRetryTimeout)
 		}

@@ -215,9 +215,9 @@ func (p *Provider) Provide(ctx context.Context, from, irreversibleFrom uint32, e
 					if (num <= properties.LastIrreversibleBlockNumber) && (num > irreversibleFrom) {
 						irreversibleFrom = num
 					}
-
-					time.Sleep(p.Options.SyncInterval)
 				}
+
+				time.Sleep(p.Options.SyncInterval)
 			}
 		}
 

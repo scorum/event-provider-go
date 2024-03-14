@@ -256,7 +256,7 @@ func (p *Provider) getExistingAccounts(ctx context.Context) ([]string, error) {
 }
 
 func (p *Provider) lookupAccounts(ctx context.Context, lowerBoundName string, limit uint16) (names []string, err error) {
-	TryDo(func(attempt int) (retry bool, err error) {
+	err = TryDo(func(attempt int) (retry bool, err error) {
 		names, err = p.client.Database.LookupAccounts(ctx, lowerBoundName, limit)
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
@@ -267,7 +267,7 @@ func (p *Provider) lookupAccounts(ctx context.Context, lowerBoundName string, li
 }
 
 func (p *Provider) getChainProperties(ctx context.Context) (prop *chain.ChainProperties, err error) {
-	TryDo(func(attempt int) (retry bool, err error) {
+	err = TryDo(func(attempt int) (retry bool, err error) {
 		prop, err = p.client.Chain.GetChainProperties(ctx)
 
 		// log.Debugf("getChainProperties dump: ", spew.Sdump(prop))
@@ -283,7 +283,7 @@ func (p *Provider) getChainProperties(ctx context.Context) (prop *chain.ChainPro
 }
 
 func (p *Provider) getBlockHistory(ctx context.Context, blockNum, limit uint32) (history blockchain_history.Blocks, err error) {
-	TryDo(func(attempt int) (retry bool, err error) {
+	err = TryDo(func(attempt int) (retry bool, err error) {
 		history, err = p.client.BlockchainHistory.GetBlocks(ctx, blockNum, limit)
 		if err != nil {
 			time.Sleep(p.Options.ErrorRetryTimeout)
